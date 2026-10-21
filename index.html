@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0b0c10" />
+    <title>Fast Racers</title>
+    <meta name="description" content="Miniature desk coaster time-trial racing game in Three.js" />
+    <meta property="og:title" content="Fast Racers" />
+    <meta property="og:description" content="Miniature desk coaster time-trial racing game in Three.js" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Orbitron:ital,wght@0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- 3D WebGL Canvas Mount -->
+    <div id="canvas-container"></div>
+
+    <!-- Helmet Visor Overlay (Visible in Camera 2: Helmet Visor POV — Clean, no top chip) -->
+    <div id="helmet-visor-overlay" class="hidden">
+      <div class="visor-vignette"></div>
+    </div>
+
+    <!-- Subtle Corner Vignette Behind HUD Elements (Visible in Camera Views 1 & 2) -->
+    <div id="hud-corner-vignette"></div>
+
+    <!-- Streamlined HUD Overlay -->
+    <div id="hud-root">
+      <!-- Top Row: Clickable "Desk Racer" Title (Top-Left) & Lap Counter/Timer + Mute Icon (Top-Right) -->
+      <header class="hud-top-bar">
+        <div class="hud-top-left-stack">
+          <div
+            id="hud-brand-logo"
+            class="hud-brand-title"
+            role="button"
+            tabindex="0"
+            title="Click to open Controls &amp; Camera Menu"
+          >Fast Racers</div>
+        </div>
+
+        <div class="hud-settings-anchor">
+          <div class="hud-top-right-row">
+            <!-- Top-Right Lap Counter & Lap Timer (Visible in 1P & 2P Views) -->
+            <div id="hud-lap-widget" class="hud-lap-widget">
+              <div id="hud-lap-header" class="hud-lap-header">
+                LAP <span id="hud-lap-curr" class="hud-lap-curr">1</span>/3
+              </div>
+              <div id="hud-lap-timer" class="hud-lap-timer" aria-label="00:00.00"><span class="timer-digit" id="lap-d0">0</span><span class="timer-digit" id="lap-d1">0</span><span class="timer-sep">:</span><span class="timer-digit" id="lap-d2">0</span><span class="timer-digit" id="lap-d3">0</span><span class="timer-sep">.</span><span class="timer-digit" id="lap-d4">0</span><span class="timer-digit" id="lap-d5">0</span></div>
+              <div id="hud-lap-split" class="hud-lap-split hidden"></div>
+              <div id="hud-ghost-delta" class="hud-ghost-delta hidden">
+                <span class="ghost-delta-label">GHOST</span>
+                <span id="hud-ghost-delta-val" class="ghost-delta-val">-0.00s</span>
+              </div>
+            </div>
+
+            <!-- Top-Right Fullscreen Toggle Button (Mobile Landscape) -->
+            <button
+              id="btn-fullscreen-toggle"
+              class="hud-mute-btn hud-fullscreen-btn"
+              type="button"
+              aria-label="Toggle Fullscreen (F)"
+              title="Fullscreen (F)"
+            >
+              <svg class="mute-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+              </svg>
+            </button>
+
+            <!-- Top-Right Motion Steering (Gyro) Toggle Button -->
+            <button
+              id="btn-gyro-toggle"
+              class="hud-mute-btn hud-gyro-btn"
+              type="button"
+              aria-label="Toggle Tilt/Motion Steering (Suivi du mouvement)"
+              title="Suivi du mouvement / Gyroscope"
+            >
+              <svg class="mute-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 3v3m0 12v3M3 12h3m12 0h3"></path>
+              </svg>
+              <span id="hud-gyro-status-dot" class="hud-gyro-status-dot hidden"></span>
+            </button>
+
+            <!-- Top-Right Ghost Car Toggle Button -->
+            <button
+              id="btn-ghost-toggle"
+              class="hud-mute-btn hud-ghost-btn active"
+              type="button"
+              aria-label="Toggle Ghost Car (G)"
+              title="Toggle Ghost Car (G)"
+            >
+              <svg class="mute-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 10h.01"></path>
+                <path d="M15 10h.01"></path>
+                <path d="M12 2a8 8 0 0 0-8 8v11l3-2.5 2.5 2.5 2.5-2.5 2.5 2.5 2.5-2.5V10a8 8 0 0 0-8-8z"></path>
+              </svg>
+              <span id="hud-ghost-status-dot" class="hud-ghost-status-dot"></span>
+            </button>
+
+            <!-- Top-Right Session Leaderboard Button -->
+            <button
+              id="btn-leaderboard-toggle"
+              class="hud-mute-btn hud-leaderboard-btn"
+              type="button"
+              aria-label="Toggle Session Leaderboard (L)"
+              title="Session Leaderboard (L)"
+            >
+              <svg class="mute-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                <path d="M4 22h16"></path>
+                <path d="M10 14.66V17c0 .55-.45 1-1 1H7v4h10v-4h-2c-.55 0-1-.45-1-1v-2.34"></path>
+                <path d="M6 4h12a2 2 0 0 1 2 2v3a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6V6a2 2 0 0 1 2-2Z"></path>
+              </svg>
+              <span id="hud-leaderboard-dot" class="hud-leaderboard-dot hidden"></span>
+            </button>
+
+            <!-- Top-Right Mute / Unmute Sound Icon Button -->
+            <button
+              id="btn-mute-sound"
+              class="hud-mute-btn is-muted"
+              type="button"
+              aria-label="Toggle Sound (M)"
+              title="Toggle Sound (M)"
+            >
+              <!-- Speaker Unmuted Icon -->
+              <svg id="icon-sound-on" class="mute-svg hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              </svg>
+              <!-- Speaker Muted Icon -->
+              <svg id="icon-sound-off" class="mute-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <line x1="23" y1="9" x2="17" y2="15"></line>
+                <line x1="17" y1="9" x2="23" y2="15"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Mobile Landscape Recommendation Banner (Shown when mobile device is held in portrait) -->
+      <div id="hud-orientation-banner" class="hud-orientation-banner hidden" role="status">
+        <span class="orientation-banner-icon">🔄</span>
+        <span class="orientation-banner-text">Mode <strong>horizontal (paysage)</strong> conseillé pour une meilleure vision du circuit</span>
+        <button id="btn-orientation-dismiss" class="orientation-dismiss-btn" type="button" aria-label="Fermer la suggestion">✕</button>
+      </div>
+
+      <!-- Real-Time Motion Steering / Gyro Tilt Horizon Gauge (Visible when Gyro Steering is active) -->
+      <div id="hud-gyro-gauge" class="hud-gyro-gauge hidden" aria-live="polite">
+        <div class="gyro-gauge-header">
+          <span class="gyro-gauge-tag">SUIVI DU MOUVEMENT</span>
+          <span id="gyro-gauge-val" class="gyro-gauge-val">0° (CENTRE)</span>
+        </div>
+        <div class="gyro-gauge-track">
+          <div class="gyro-gauge-center-line"></div>
+          <div id="gyro-gauge-fill" class="gyro-gauge-fill"></div>
+          <div id="gyro-gauge-pip" class="gyro-gauge-pip"></div>
+        </div>
+        <div class="gyro-gauge-footer">
+          <span>◀ GAUCHE</span>
+          <button id="btn-gyro-calibrate" class="gyro-calibrate-btn" type="button" title="Calibrer la position neutre du téléphone">
+            CALIBRER
+          </button>
+          <span>DROITE ▶</span>
+        </div>
+      </div>
+
+      <!-- Welcome & Controls Dialog (Shown on Launch & When Clicking "Desk Racer") -->
+      <div id="welcome-dialog-overlay" class="welcome-dialog-overlay">
+        <div class="welcome-dialog-card" role="dialog" aria-labelledby="welcome-title">
+          <div class="welcome-eyebrow">DESKTOP CIRCUIT · 3 LAPS</div>
+          <h1 id="welcome-title" class="welcome-title">FAST RACERS</h1>
+
+          <div class="welcome-controls-grid">
+            <!-- WASD Controls -->
+            <div class="welcome-control-block">
+              <div class="welcome-control-label">CONTROLS</div>
+              <div class="control-keys-list" aria-label="WASD Controls">
+                <div class="control-key-row">
+                  <div class="control-kbd-pair">
+                    <kbd class="welcome-key">W</kbd>
+                  </div>
+                  <span>ACCELERATE</span>
+                </div>
+                <div class="control-key-row">
+                  <div class="control-kbd-pair">
+                    <kbd class="welcome-key">A</kbd>
+                    <kbd class="welcome-key">D</kbd>
+                  </div>
+                  <span>STEER</span>
+                </div>
+                <div class="control-key-row">
+                  <div class="control-kbd-pair">
+                    <kbd class="welcome-key">S</kbd>
+                  </div>
+                  <span>BRAKE</span>
+                </div>
+                <div class="control-key-row">
+                  <div class="control-kbd-pair">
+                    <kbd class="welcome-key">G</kbd>
+                  </div>
+                  <span>GHOST BENCHMARK</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Game Views 1-4 -->
+            <div class="welcome-control-block">
+              <div class="welcome-control-label">GAME VIEWS</div>
+              <div class="cam-keys-list">
+                <div class="cam-key-row cam-pill active" data-cam="1"><kbd class="welcome-key welcome-key-cyan">1</kbd><span>CHASE VIEW</span></div>
+                <div class="cam-key-row cam-pill" data-cam="2"><kbd class="welcome-key welcome-key-cyan">2</kbd><span>COCKPIT</span></div>
+                <div class="cam-key-row cam-pill" data-cam="3"><kbd class="welcome-key welcome-key-cyan">3</kbd><span>FULL DESK VIEW</span></div>
+                <div class="cam-key-row cam-pill" data-cam="4"><kbd class="welcome-key welcome-key-cyan">4</kbd><span>DRONE VIEW</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mobile Controls Mode Selector (Optimized for Mobile Landscape & Motion Steering) -->
+          <div id="welcome-mobile-mode-block" class="welcome-control-block welcome-mobile-block">
+            <div class="welcome-control-label">PILOTAGE MOBILE · SUIVI DU MOUVEMENT</div>
+            <div class="mobile-mode-selector-row">
+              <button
+                id="btn-mode-gyro"
+                class="mobile-mode-pill active"
+                type="button"
+                title="Piloter en inclinant le portable vers la gauche ou la droite"
+              >
+                <span class="mode-pill-icon">🔄</span>
+                <span>SUIVI MOUVEMENT (GYRO)</span>
+              </button>
+              <button
+                id="btn-mode-touch"
+                class="mobile-mode-pill"
+                type="button"
+                title="Piloter avec les touches tactiles gauche et droite"
+              >
+                <span class="mode-pill-icon">👆</span>
+                <span>TOUCHES ÉCRAN</span>
+              </button>
+            </div>
+            <div class="welcome-mobile-hint">
+              📱 Inclinez l'appareil à <strong>gauche ou droite</strong> pour tourner. Mode <strong>horizontal (paysage)</strong> vivement conseillé.
+            </div>
+          </div>
+
+          <!-- Session Fastest Lap Banner in Welcome Dialog -->
+          <div class="welcome-session-best-box">
+            <div class="welcome-session-best-info">
+              <span class="welcome-best-tag">🏆 SESSION BEST LAP</span>
+              <span id="welcome-session-best-val" class="welcome-session-best-val">--:--.--</span>
+            </div>
+            <button id="welcome-view-leaderboard-btn" class="welcome-view-lb-btn" type="button">
+              TOP 5 LEADERBOARD (L)
+            </button>
+          </div>
+
+          <div class="welcome-footer-row">
+            <button id="btn-welcome-start" class="welcome-start-btn" type="button">
+              <span id="welcome-start-text" class="welcome-start-text">START TIME TRIAL</span>
+              <kbd id="welcome-enter-kbd" class="welcome-enter-kbd">ENTER ↵</kbd>
+              <span class="welcome-btn-progress-track" aria-hidden="true">
+                <span id="welcome-btn-progress-fill" class="welcome-btn-progress-fill"></span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- In-Race Record Notification Toast -->
+      <div id="hud-record-toast" class="hud-record-toast hidden" role="status" aria-live="polite">
+        <div class="record-toast-badge">🏆</div>
+        <div class="record-toast-content">
+          <div id="record-toast-title" class="record-toast-title">NEW SESSION BEST!</div>
+          <div id="record-toast-sub" class="record-toast-sub">RANK #1 · 00:00.00</div>
+        </div>
+      </div>
+
+      <!-- Full Session Leaderboard Modal -->
+      <div id="hud-leaderboard-modal" class="welcome-dialog-overlay hud-leaderboard-modal hidden" role="dialog" aria-labelledby="leaderboard-title">
+        <div class="welcome-dialog-card leaderboard-dialog-card">
+          <div class="leaderboard-card-header">
+            <div>
+              <div class="welcome-eyebrow">DESKTOP CIRCUIT · LOCAL STORAGE</div>
+              <h2 id="leaderboard-title" class="hud-finish-title leaderboard-title">TOP 5 FASTEST LAPS</h2>
+            </div>
+            <button id="btn-leaderboard-close" class="leaderboard-close-btn" type="button" aria-label="Close Leaderboard">
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+
+          <p class="leaderboard-desc">Fastest 5 lap times achieved during this active session, preserved in local storage.</p>
+
+          <!-- Top 5 Leaderboard List -->
+          <div id="leaderboard-rows-container" class="leaderboard-rows-container">
+            <!-- Dynamic rows -->
+          </div>
+
+          <!-- Ghost Car Info & Toggle Banner -->
+          <div class="leaderboard-ghost-box">
+            <div class="lb-ghost-left">
+              <span class="lb-ghost-icon">👻</span>
+              <div class="lb-ghost-text-group">
+                <div class="lb-ghost-title">GHOST CAR BENCHMARK</div>
+                <div id="lb-ghost-benchmark-time" class="lb-ghost-time">BEST LAP: 00:48.85</div>
+              </div>
+            </div>
+            <div class="lb-ghost-right">
+              <button id="btn-modal-ghost-toggle" class="lb-ghost-toggle-btn is-active" type="button" title="Toggle Ghost Car (G)">
+                GHOST: ON
+              </button>
+            </div>
+          </div>
+
+          <!-- Session Stats Summary -->
+          <div class="leaderboard-stats-row">
+            <div class="lb-stat-cell">
+              <span class="lb-stat-title">SESSION BEST</span>
+              <span id="modal-stat-best" class="lb-stat-number stat-gold">--:--.--</span>
+            </div>
+            <div class="lb-stat-cell">
+              <span class="lb-stat-title">TOTAL LAPS</span>
+              <span id="modal-stat-total" class="lb-stat-number stat-white">0</span>
+            </div>
+            <div class="lb-stat-cell">
+              <span class="lb-stat-title">AVG LAP</span>
+              <span id="modal-stat-avg" class="lb-stat-number stat-cyan">--:--.--</span>
+            </div>
+          </div>
+
+          <!-- Modal Actions -->
+          <div class="leaderboard-actions-row">
+            <button id="btn-leaderboard-clear" class="welcome-start-btn leaderboard-clear-btn" type="button" title="Clear current session records">
+              <span>CLEAR SESSION</span>
+            </button>
+            <button id="btn-leaderboard-resume" class="welcome-start-btn finish-action-btn" type="button">
+              <span class="welcome-start-text">BACK TO RACE</span>
+              <kbd class="welcome-enter-kbd">ESC</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Formula 1 Countdown Number (Triggered by pressing Enter at Start) -->
+      <div id="hud-f1-countdown" class="hud-f1-countdown hidden">5</div>
+
+      <div id="hud-finish-overlay" class="welcome-dialog-overlay hud-finish-overlay hidden" role="dialog" aria-labelledby="hud-finish-title">
+        <div class="welcome-dialog-card finish-dialog-card">
+          <div class="welcome-eyebrow">DESKTOP CIRCUIT · 3 LAPS COMPLETE</div>
+          <h2 id="hud-finish-title" class="hud-finish-title">FINISH</h2>
+          <div id="hud-finish-time" class="hud-finish-time">00:00.00</div>
+          <div id="hud-finish-sub" class="hud-finish-sub">BEST LAP 00:00.00</div>
+
+          <!-- Finish Dialog Session Top 5 Leaderboard Section -->
+          <div class="finish-leaderboard-panel">
+            <div class="finish-leaderboard-bar">
+              <span class="finish-leaderboard-caption">🏆 SESSION TOP 5 LAPS</span>
+              <span id="finish-new-record-tag" class="finish-new-record-tag hidden">NEW TOP 5 RECORD!</span>
+            </div>
+            <div id="finish-leaderboard-rows" class="finish-leaderboard-rows">
+              <!-- Rendered dynamically -->
+            </div>
+            <div id="finish-ghost-comparison" class="finish-ghost-comparison">
+              <span class="finish-ghost-label">👻 VS GHOST BENCHMARK:</span>
+              <span id="finish-ghost-delta-val" class="finish-ghost-delta-val">--:--.--</span>
+            </div>
+          </div>
+
+          <div class="finish-actions-row">
+            <button id="btn-finish-race-again" class="welcome-start-btn finish-action-btn" type="button">
+              <span class="welcome-start-text">RACE AGAIN</span>
+              <kbd class="welcome-enter-kbd">ENTER ↵</kbd>
+            </button>
+            <button id="btn-finish-autopilot" class="welcome-start-btn finish-action-btn finish-autopilot-btn" type="button">
+              <span class="welcome-start-text">AUTO-PILOT</span>
+              <kbd class="welcome-enter-kbd">P</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Row: 3D Tilted Racetrack Minimap (Bottom-Left) | Angled Segmented Speedometer HUD (Bottom-Right) -->
+      <footer class="hud-bottom-bar">
+        <!-- Bottom-Left: Borderless Horizontally-Tilted 3D Racetrack Outline & Cyan Glowing Dot -->
+        <div class="hud-minimap-widget" title="Live Racetrack Position">
+          <canvas id="minimap-canvas" width="600" height="390"></canvas>
+        </div>
+
+        <!-- Bottom-Right: Sleek Angled Segmented Speed Bar + Italic KM/H & Speed Readout -->
+        <div class="hud-speedo-gauge">
+          <svg id="speedo-gauge-svg" viewBox="0 0 284 134" class="speedo-svg">
+            <defs>
+              <linearGradient id="speedoFrameStrokeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="rgba(255, 255, 255, 0.35)" />
+                <stop offset="45%" stop-color="rgba(160, 240, 255, 0.55)" />
+                <stop offset="100%" stop-color="rgba(0, 232, 255, 0.92)" />
+              </linearGradient>
+              <filter id="speedoCyanGlow" x="-25%" y="-25%" width="150%" height="150%">
+                <feGaussianBlur stdDeviation="2.4" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+
+            <!-- Outer dark angled bar casing & cyan-accented frame -->
+            <polygon
+              id="speedo-bar-casing"
+              points="15,108 62,34 268,6 276,22 73,50 28,118"
+              class="speedo-bar-casing"
+              stroke="url(#speedoFrameStrokeGrad)"
+            />
+
+            <!-- 18 angled parallelogram speed segments populated dynamically at startup -->
+            <g id="speedo-ticks-group"></g>
+          </svg>
+
+          <!-- Italic KM/H label & Large Bold Italic Speed Readout tucked inside the angled bar -->
+          <div class="speedo-readout-group">
+            <div class="speedo-unit-label">KM/H</div>
+            <div id="hud-scale-speed" class="speedo-digits">0</div>
+          </div>
+        </div>
+      </footer>
+
+      <!-- Mobile Bottom Touch Controls Row (Visible in Mobile View after clicking Start Time Trial) -->
+      <div
+        id="mobile-touch-controls"
+        class="mobile-touch-controls hidden"
+        role="region"
+        aria-label="Mobile Driving Controls"
+      >
+        <!-- Left Side: Left (A) and Right (D) Steer Icons -->
+        <div class="mobile-ctrl-cluster mobile-steer-cluster" role="group" aria-label="Steering Controls">
+          <button
+            id="btn-touch-left"
+            class="mobile-ctrl-btn mobile-ctrl-steer"
+            type="button"
+            data-control="left"
+            aria-label="Tourner à gauche (A)"
+            title="Tourner à gauche"
+          >
+            <span class="mobile-ctrl-inner">
+              <svg class="mobile-ctrl-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="13 17 8 12 13 7"></polyline>
+                <polyline points="18 17 13 12 18 7" opacity="0.45"></polyline>
+              </svg>
+              <span class="mobile-ctrl-label">GAUCHE</span>
+            </span>
+          </button>
+
+          <button
+            id="btn-touch-right"
+            class="mobile-ctrl-btn mobile-ctrl-steer"
+            type="button"
+            data-control="right"
+            aria-label="Tourner à droite (D)"
+            title="Tourner à droite"
+          >
+            <span class="mobile-ctrl-inner">
+              <svg class="mobile-ctrl-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="11 17 16 12 11 7"></polyline>
+                <polyline points="6 17 11 12 6 7" opacity="0.45"></polyline>
+              </svg>
+              <span class="mobile-ctrl-label">DROITE</span>
+            </span>
+          </button>
+        </div>
+
+        <!-- Center Action: Mode Toggle & Calibration Pill -->
+        <div class="mobile-ctrl-cluster mobile-center-cluster" role="group" aria-label="Suivi du mouvement">
+          <button
+            id="btn-touch-gyro-toggle"
+            class="mobile-ctrl-pill-btn active"
+            type="button"
+            title="Basculer entre suivi du mouvement (gyroscope) et touches"
+          >
+            <span class="mobile-pill-icon">🔄</span>
+            <span id="mobile-gyro-btn-text" class="mobile-pill-text">SUIVI GYRO : ACTIF</span>
+          </button>
+        </div>
+
+        <!-- Right Side: Accelerate (W), Brake (S) and Drift/Boost Buttons -->
+        <div class="mobile-ctrl-cluster mobile-pedal-cluster" role="group" aria-label="Accelerate, Brake and Boost Controls">
+          <button
+            id="btn-touch-brake"
+            class="mobile-ctrl-btn mobile-ctrl-brake"
+            type="button"
+            data-control="backward"
+            aria-label="Freiner / Reculer (S)"
+            title="Frein / Marche arrière"
+          >
+            <span class="mobile-ctrl-inner">
+              <svg class="mobile-ctrl-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="7 8 12 13 17 8"></polyline>
+                <line x1="7" y1="17" x2="17" y2="17"></line>
+              </svg>
+              <span class="mobile-ctrl-label">FREIN</span>
+            </span>
+          </button>
+
+          <button
+            id="btn-touch-accel"
+            class="mobile-ctrl-btn mobile-ctrl-accel"
+            type="button"
+            data-control="forward"
+            aria-label="Accélérer (W)"
+            title="Accélérateur"
+          >
+            <span class="mobile-ctrl-inner">
+              <svg class="mobile-ctrl-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="17 13 12 8 7 13"></polyline>
+                <polyline points="17 18 12 13 7 18" opacity="0.45"></polyline>
+              </svg>
+              <span class="mobile-ctrl-label">GAZ</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
