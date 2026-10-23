@@ -19,6 +19,8 @@ import { createKartPhysicsController } from './physics/KartPhysicsController.js'
 import { createWebAudioSynth } from './audio/WebAudioSynth.js';
 import { leaderboardManager, formatLapTime } from './leaderboard/LeaderboardManager.js';
 import { ghostVehicleManager } from './ghost/GhostVehicleManager.js';
+import { DynamicWeatherManager } from './scene/DynamicWeatherManager.js';
+import { CIRCUITS, getTrackSplineForCircuit } from './scene/TrackDefinitions.js';
 
 async function initApp() {
   const container = document.getElementById('canvas-container');
@@ -216,13 +218,34 @@ async function initApp() {
     fetch('/assets/data/track_spline.json'),
   ]);
   const manifest = await manifestRes.json();
-  const splineData = await splineRes.json();
+  const baseSplineData = await splineRes.json();
+
+  let currentCircuitId = 'circuit_1';
+  try {
+    const saved = localStorage.getItem('fast_racers_circuit_id');
+    if (saved === 'circuit_1' || saved === 'circuit_2') {
+      currentCircuitId = saved;
+    }
+  } catch (_e) {}
+
+  let activeSplineData = getTrackSplineForCircuit(currentCircuitId, baseSplineData);
+  let splineData = activeSplineData;
 
   // Sector lookup map
   const sectorNames = {};
-  for (const sec of splineData.sectors || []) {
-    sectorNames[sec.id] = sec.name;
+  function updateSectorNames(spline) {
+    for (const k of Object.keys(sectorNames)) delete sectorNames[k];
+    for (const sec of spline.sectors || []) {
+      sectorNames[sec.id] = sec.name;
+    }
+    document.querySelectorAll('.tp-btn').forEach((btn) => {
+      const sec = Number(btn.dataset.sector);
+      if (sectorNames[sec]) {
+        btn.title = `Secteur ${sec} : ${sectorNames[sec]}`;
+      }
+    });
   }
+  updateSectorNames(activeSplineData);
 
   // -------------------------------------------------------------------------
   // 3. BUILD WARM NIGHT-TIME ATMOSPHERE, DESK MONUMENTS, COASTER TRACK, 1:87 KART & BEDROOM
@@ -243,6 +266,7 @@ async function initApp() {
   scene.environmentIntensity = 0.08 + 0.55 * settings.sunIntensity;
 
   const atmosphere = buildGoldenHourAtmosphere(scene);
+  const weatherManager = new DynamicWeatherManager(scene, renderer, atmosphere);
   const diorama = buildProceduralDeskDiorama(manifest);
   scene.add(diorama.root);
   if (diorama.nightGlowGroup) {
@@ -252,7 +276,7 @@ async function initApp() {
   const roomEnv = buildRoomEnvironment(scene, settings);
   scene.add(roomEnv.roomRoot);
 
-  const coaster = buildCoasterTrack(splineData);
+  let coaster = buildCoasterTrack(activeSplineData);
   scene.add(coaster.trackGroup);
   if (coaster.underTrackLedGroup) {
     scene.add(coaster.underTrackLedGroup);
@@ -363,6 +387,7 @@ async function initApp() {
   const glbContainerGroup = new THREE.Group();
   glbContainerGroup.name = 'LoadedGLBAssetsGroup';
   scene.add(glbContainerGroup);
+  let trackGlbScene = null;
 
   // Bedroom furniture nodes (NeatUpholsteredBed, BoucleDeskChair, WalnutDresserAndGemini4Vignette,
   // BedroomDoorAndThermostat) are kept visible in ALL camera modes (1..8) with Three.js frustum culling
@@ -735,11 +760,13 @@ async function initApp() {
       glbContainerGroup.add(glbScene);
     });
     tryLoadGlbAsset('track_coaster.glb', 'track', (glbScene) => {
+      trackGlbScene = glbScene;
       if (coaster.calibrateTrackCoasterGlb) {
         coaster.calibrateTrackCoasterGlb(glbScene);
       }
-      coaster.trackGroup.visible = false;
-      disposeGroupGeometries(coaster.trackGroup);
+      const showGlb = currentCircuitId === 'circuit_1';
+      trackGlbScene.visible = showGlb;
+      coaster.trackGroup.visible = !showGlb;
       glbContainerGroup.add(glbScene);
     });
     tryLoadGlbAsset('kart_1to87.glb', 'kart', (glbScene) => {
@@ -805,8 +832,8 @@ async function initApp() {
   // -------------------------------------------------------------------------
   // 4. INITIALIZE RAPIER3D WORLD & 60FPS BANKED COASTER VEHICLE CONTROLLER
   // -------------------------------------------------------------------------
-  const physics = await createKartPhysicsController(
-    splineData,
+  let physics = await createKartPhysicsController(
+    activeSplineData,
     manifest,
     coaster.roadGeo
   );
@@ -1710,15 +1737,19 @@ async function initApp() {
   let mapMinimapX = (x, _y, _z) => x;
   let mapMinimapY = (_x, _y, z) => z;
 
-  if (radarCanvas) {
-    radarBgCanvas = document.createElement('canvas');
-    radarBgCanvas.width = radarCanvas.width;
-    radarBgCanvas.height = radarCanvas.height;
+  function initMinimap(spline) {
+    if (!radarCanvas) return;
+    if (!radarBgCanvas) {
+      radarBgCanvas = document.createElement('canvas');
+      radarBgCanvas.width = radarCanvas.width;
+      radarBgCanvas.height = radarCanvas.height;
+    }
     const bgCtx = radarBgCanvas.getContext('2d');
     const w = radarBgCanvas.width;
     const h = radarBgCanvas.height;
+    bgCtx.clearRect(0, 0, w, h);
 
-    const pts = splineData.samples;
+    const pts = spline.samples;
     const nPts = pts.length;
     let minPX = Infinity;
     let maxPX = -Infinity;
@@ -1856,6 +1887,8 @@ async function initApp() {
       strokeElevationTier(tier.min, tier.max, tier.shade, 12.0, 0.0);
     }
   }
+
+  initMinimap(activeSplineData);
 
   function drawMinimapRadar(st) {
     if (!radarCtx || !radarCanvas) return;
@@ -2288,56 +2321,70 @@ async function initApp() {
     finishOverlayShown = true;
   }
 
-  physics.onLapComplete((lapTime, bestLap, completedLapNum, totalTime, isFinish) => {
-    // Record into local storage session leaderboard
-    const recordResult = leaderboardManager.recordLap(lapTime, completedLapNum, physics.state.autopilot);
-    lastRecordedLapId = recordResult.lap ? recordResult.lap.id : null;
+  function attachPhysicsCallbacks() {
+    if (physics.onRailImpact) {
+      physics.onRailImpact((severity = 0.7, type = 'crash') => {
+        if (audioSynth.playRailImpact) {
+          audioSynth.playRailImpact(severity, type);
+        }
+        camShakeTimer = type === 'curb' ? 0.09 : type === 'graze' ? 0.12 : 0.20;
+        camShakeIntensity = THREE.MathUtils.clamp(severity, 0.25, 1.0);
+      });
+    }
 
-    if (recordResult.rank >= 1 && recordResult.rank <= 5) {
-      if (recordResult.isNewSessionBest) {
-        showRecordToast('NEW SESSION BEST! 🥇', `RANK #1 · ${recordResult.lap?.formattedTime}`);
-      } else {
-        showRecordToast('TOP 5 LAP TIME! 🏆', `RANK #${recordResult.rank} · ${recordResult.lap?.formattedTime}`);
+    physics.onLapComplete((lapTime, bestLap, completedLapNum, totalTime, isFinish) => {
+      // Record into local storage session leaderboard
+      const recordResult = leaderboardManager.recordLap(lapTime, completedLapNum, physics.state.autopilot);
+      lastRecordedLapId = recordResult.lap ? recordResult.lap.id : null;
+
+      if (recordResult.rank >= 1 && recordResult.rank <= 5) {
+        if (recordResult.isNewSessionBest) {
+          showRecordToast('NEW SESSION BEST! 🥇', `RANK #1 · ${recordResult.lap?.formattedTime}`);
+        } else {
+          showRecordToast('TOP 5 LAP TIME! 🏆', `RANK #${recordResult.rank} · ${recordResult.lap?.formattedTime}`);
+        }
+        if (elLeaderboardDot) elLeaderboardDot.classList.remove('hidden');
       }
-      if (elLeaderboardDot) elLeaderboardDot.classList.remove('hidden');
+
+      // Check if this lap sets a new Ghost Car benchmark
+      const ghostResult = ghostVehicleManager.finishLap(lapTime, physics.state.autopilot);
+      if (ghostResult.isNewGhost) {
+        showRecordToast('NEW GHOST BENCHMARK! 👻', `${ghostResult.formattedTime} · SAVED TO STORAGE`);
+        syncGhostUI();
+      }
+      ghostVehicleManager.startLapRecording();
+
+      updateHighScoreMonitorLeaderboard(recordResult.top5);
+      updateWelcomeLeaderboardPreview();
+
+      if (isFinish) {
+        const finalTotal =
+          totalTime ?? physics.state.finishTotalTime ?? physics.state.totalRaceTime ?? lapTime;
+        showFinishOverlay(finalTotal, bestLap ?? lapTime, true);
+      } else {
+        audioSynth.playLapChime();
+        const lapNum = completedLapNum || Math.max(1, (physics.state.lapCount || 2) - 1);
+        showLapSplit(lapNum, lapTime);
+      }
+    });
+
+    if (physics.onRaceFinish) {
+      physics.onRaceFinish((totalTime, _lapTimes, bestLap) => {
+        showFinishOverlay(totalTime, bestLap, true);
+      });
     }
 
-    // Check if this lap sets a new Ghost Car benchmark
-    const ghostResult = ghostVehicleManager.finishLap(lapTime, physics.state.autopilot);
-    if (ghostResult.isNewGhost) {
-      showRecordToast('NEW GHOST BENCHMARK! 👻', `${ghostResult.formattedTime} · SAVED TO STORAGE`);
-      syncGhostUI();
-    }
-    ghostVehicleManager.startLapRecording();
-
-    updateHighScoreMonitorLeaderboard(recordResult.top5);
-    updateWelcomeLeaderboardPreview();
-
-    if (isFinish) {
-      const finalTotal =
-        totalTime ?? physics.state.finishTotalTime ?? physics.state.totalRaceTime ?? lapTime;
-      showFinishOverlay(finalTotal, bestLap ?? lapTime, true);
-    } else {
-      audioSynth.playLapChime();
-      const lapNum = completedLapNum || Math.max(1, (physics.state.lapCount || 2) - 1);
-      showLapSplit(lapNum, lapTime);
-    }
-  });
-
-  if (physics.onRaceFinish) {
-    physics.onRaceFinish((totalTime, _lapTimes, bestLap) => {
-      showFinishOverlay(totalTime, bestLap, true);
+    physics.onModeChange((isAuto) => {
+      syncAutopilotUI(isAuto);
+      if (isAuto) {
+        hideFinishOverlay();
+        hideLapSplit();
+        cancelF1StartCountdown();
+      }
     });
   }
 
-  physics.onModeChange((isAuto) => {
-    syncAutopilotUI(isAuto);
-    if (isAuto) {
-      hideFinishOverlay();
-      hideLapSplit();
-      cancelF1StartCountdown();
-    }
-  });
+  attachPhysicsCallbacks();
 
   // Formula 1 5-Light Start Sequence State (Triggered by pressing Enter)
   const f1CountdownState = {
@@ -2526,6 +2573,52 @@ async function initApp() {
     showFinishOverlay(51.42, 16.84, false);
   }
 
+  // -------------------------------------------------------------------------
+  // MOBILE TOUCH CONTROLS (BRAKE ON LEFT, ACCELERATOR ON RIGHT, GYRO STEERING)
+  // -------------------------------------------------------------------------
+  const detectTouchDevice = () => {
+    return (
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+      window.innerWidth <= 1024
+    );
+  };
+
+  if (detectTouchDevice()) {
+    document.body.classList.add('is-touch-device');
+  }
+  window.addEventListener(
+    'touchstart',
+    () => {
+      document.body.classList.add('is-touch-device');
+    },
+    { once: true, passive: true }
+  );
+
+  const elBtnTouchToggle = document.getElementById('btn-touch-toggle');
+  const elHudTouchDot = document.getElementById('hud-touch-dot');
+  function toggleTouchControlsForce() {
+    const forced = document.body.classList.toggle('touch-controls-forced');
+    if (elBtnTouchToggle) {
+      elBtnTouchToggle.classList.toggle('is-active', forced);
+      elBtnTouchToggle.setAttribute('aria-pressed', forced ? 'true' : 'false');
+    }
+    if (elHudTouchDot) {
+      elHudTouchDot.classList.toggle('hidden', !forced);
+    }
+    showRecordToast(
+      forced ? 'COMMANDES TACTILES : ACTIVÉES 📱' : 'COMMANDES TACTILES : AUTO 📱',
+      forced ? 'Boutons frein/accélérateur forcés' : 'Mode tactile selon détection'
+    );
+  }
+  if (elBtnTouchToggle) {
+    elBtnTouchToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleTouchControlsForce();
+    });
+  }
+
   const elMobileTouchControls = document.getElementById('mobile-touch-controls');
   const mobileControlButtons = elMobileTouchControls
     ? Array.from(elMobileTouchControls.querySelectorAll('.mobile-ctrl-btn'))
@@ -2549,9 +2642,16 @@ async function initApp() {
         physics.setTouchKey(dir, isPressed);
       }
     }
+
+    if (activeTouchDirs.has('reset')) {
+      physics.resetToStart();
+      if (navigator.vibrate) navigator.vibrate(25);
+    }
+
     for (const btn of mobileControlButtons) {
       const dir = btn.dataset.control;
-      const isPressed = Boolean(dir && physics.keys[dir]);
+      if (!dir) continue;
+      const isPressed = dir === 'reset' ? activeTouchDirs.has('reset') : Boolean(physics.keys[dir]);
       btn.classList.toggle('is-pressed', isPressed);
       btn.setAttribute('aria-pressed', isPressed ? 'true' : 'false');
     }
@@ -2654,7 +2754,383 @@ async function initApp() {
     });
   }
 
+  // -------------------------------------------------------------------------
+  // SUIVI DU MOUVEMENT (GYROSCOPE) & HORIZON GAUGE
+  // -------------------------------------------------------------------------
+  let gyroActive = true;
+  let gyroNeutralOffset = 0.0;
+  let currentMotionSteer = 0.0;
+  const elBtnGyroToggle = document.getElementById('btn-gyro-toggle');
+  const elHudGyroDot = document.getElementById('hud-gyro-status-dot');
+  const elTouchGyroToggle = document.getElementById('btn-touch-gyro-toggle');
+  const elMobileGyroText = document.getElementById('mobile-gyro-btn-text');
+  const elHudGyroGauge = document.getElementById('hud-gyro-gauge');
+  const elGyroGaugeVal = document.getElementById('gyro-gauge-val');
+  const elGyroGaugeFill = document.getElementById('gyro-gauge-fill');
+  const elGyroGaugePip = document.getElementById('gyro-gauge-pip');
+  const elBtnGyroCalibrate = document.getElementById('btn-gyro-calibrate');
+  const elBtnModeGyro = document.getElementById('btn-mode-gyro');
+  const elBtnModeTouch = document.getElementById('btn-mode-touch');
+
+  function setGyroActive(active, notify = true) {
+    gyroActive = Boolean(active);
+    if (elBtnGyroToggle) {
+      elBtnGyroToggle.classList.toggle('is-active', gyroActive);
+      elBtnGyroToggle.setAttribute('aria-pressed', gyroActive ? 'true' : 'false');
+    }
+    if (elHudGyroDot) {
+      elHudGyroDot.classList.toggle('hidden', !gyroActive);
+    }
+    if (elTouchGyroToggle) {
+      elTouchGyroToggle.classList.toggle('active', gyroActive);
+    }
+    if (elMobileGyroText) {
+      elMobileGyroText.textContent = gyroActive ? 'GYRO : ACTIF' : 'TOUCHES SEULES';
+    }
+    if (elBtnModeGyro) elBtnModeGyro.classList.toggle('active', gyroActive);
+    if (elBtnModeTouch) elBtnModeTouch.classList.toggle('active', !gyroActive);
+
+    const isTouchScreen = detectTouchDevice() || document.body.classList.contains('touch-controls-forced');
+    if (elHudGyroGauge) {
+      elHudGyroGauge.classList.toggle('hidden', !gyroActive || !isTouchScreen);
+    }
+
+    if (!gyroActive) {
+      currentMotionSteer = 0.0;
+      if (physics.setMotionSteer) physics.setMotionSteer(0.0);
+    }
+    if (notify) {
+      showRecordToast(
+        gyroActive ? 'SUIVI MOUVEMENT (GYRO) : ACTIF 🔄' : 'COMMANDES : TOUCHES ÉCRAN 👆',
+        gyroActive ? 'Inclinez le téléphone pour tourner' : 'Utilisez les touches GAUCHE et DROITE'
+      );
+    }
+  }
+
+  function handleDeviceOrientation(e) {
+    if (!gyroActive) return;
+    const isLandscape = window.innerWidth > window.innerHeight;
+    let rawAngle = 0;
+    if (isLandscape) {
+      const screenAngle = (window.screen && window.screen.orientation && window.screen.orientation.angle) !== undefined
+        ? window.screen.orientation.angle
+        : (window.orientation || 90);
+      if (screenAngle === 90) {
+        rawAngle = -(e.beta || 0);
+      } else if (screenAngle === -90 || screenAngle === 270) {
+        rawAngle = (e.beta || 0);
+      } else {
+        rawAngle = -(e.beta || 0);
+      }
+    } else {
+      rawAngle = (e.gamma || 0);
+    }
+
+    const netAngle = rawAngle - gyroNeutralOffset;
+    let effective = 0;
+    if (Math.abs(netAngle) > 2.2) {
+      effective = (netAngle - Math.sign(netAngle) * 2.2) / 19.5;
+    }
+    const clampedSteer = THREE.MathUtils.clamp(effective, -1.0, 1.0);
+    currentMotionSteer = THREE.MathUtils.lerp(currentMotionSteer, clampedSteer, 0.28);
+    if (physics.setMotionSteer) {
+      physics.setMotionSteer(currentMotionSteer);
+    }
+
+    if (elGyroGaugeVal) {
+      const degRounded = Math.round(netAngle);
+      elGyroGaugeVal.textContent =
+        Math.abs(degRounded) <= 1 ? '0° (CENTRE)' :
+        degRounded < 0 ? `${Math.abs(degRounded)}° GAUCHE` :
+        `${degRounded}° DROITE`;
+    }
+    if (elGyroGaugePip) {
+      const pipPct = 50 + currentMotionSteer * 45;
+      elGyroGaugePip.style.left = `${pipPct.toFixed(1)}%`;
+    }
+    if (elGyroGaugeFill) {
+      if (currentMotionSteer >= 0) {
+        elGyroGaugeFill.style.left = '50%';
+        elGyroGaugeFill.style.width = `${(currentMotionSteer * 50).toFixed(1)}%`;
+      } else {
+        const w = (-currentMotionSteer * 50).toFixed(1);
+        elGyroGaugeFill.style.left = `${(50 - Number(w)).toFixed(1)}%`;
+        elGyroGaugeFill.style.width = `${w}%`;
+      }
+    }
+  }
+
+  function calibrateGyro() {
+    gyroNeutralOffset = 0.0;
+    showRecordToast('GYROSCOPE CALIBRÉ 🎯', 'Position neutre réinitialisée');
+  }
+
+  function initGyroListener() {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then((res) => {
+          if (res === 'granted') {
+            window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
+          }
+        })
+        .catch((_e) => {
+          window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
+        });
+    } else {
+      window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
+    }
+  }
+
+  if (elBtnGyroToggle) {
+    elBtnGyroToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      initGyroListener();
+      setGyroActive(!gyroActive);
+    });
+  }
+  if (elTouchGyroToggle) {
+    elTouchGyroToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      initGyroListener();
+      setGyroActive(!gyroActive);
+    });
+  }
+  if (elBtnGyroCalibrate) {
+    elBtnGyroCalibrate.addEventListener('click', (e) => {
+      e.stopPropagation();
+      calibrateGyro();
+    });
+  }
+  if (elBtnModeGyro) {
+    elBtnModeGyro.addEventListener('click', () => {
+      initGyroListener();
+      setGyroActive(true);
+    });
+  }
+  if (elBtnModeTouch) {
+    elBtnModeTouch.addEventListener('click', () => {
+      setGyroActive(false);
+    });
+  }
+
+  // Orientation portrait warning banner
+  const elOrientationBanner = document.getElementById('hud-orientation-banner');
+  const elBtnOrientationDismiss = document.getElementById('btn-orientation-dismiss');
+  let orientationDismissed = false;
+
+  function checkOrientationBanner() {
+    if (!elOrientationBanner || orientationDismissed) return;
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const isMobileDevice = detectTouchDevice();
+    const shouldShow = Boolean(isPortrait && isMobileDevice);
+    elOrientationBanner.classList.toggle('hidden', !shouldShow);
+  }
+
+  if (elBtnOrientationDismiss) {
+    elBtnOrientationDismiss.addEventListener('click', (e) => {
+      e.stopPropagation();
+      orientationDismissed = true;
+      if (elOrientationBanner) elOrientationBanner.classList.add('hidden');
+    });
+  }
+
+  window.addEventListener('resize', checkOrientationBanner);
+  window.addEventListener('orientationchange', checkOrientationBanner);
+  checkOrientationBanner();
+  setGyroActive(true, false);
+
+  // -------------------------------------------------------------------------
+  // DYNAMIC WEATHER SYSTEM BINDINGS & NOTIFICATIONS
+  // -------------------------------------------------------------------------
+  const elBtnWeatherToggle = document.getElementById('btn-weather-toggle');
+  const elHudWeatherIcon = document.getElementById('hud-weather-icon');
+  const elHudWeatherDot = document.getElementById('hud-weather-dot');
+  const elTouchWeatherToggle = document.getElementById('btn-touch-weather-toggle');
+  const elMobileWeatherPillIcon = document.getElementById('mobile-weather-pill-icon');
+  const elMobileWeatherPillText = document.getElementById('mobile-weather-pill-text');
+
+  weatherManager.onWeatherChanged((type, weatherSettings) => {
+    if (elHudWeatherIcon) elHudWeatherIcon.textContent = weatherSettings.icon;
+    if (elHudWeatherDot) elHudWeatherDot.style.background = weatherSettings.color;
+    if (elMobileWeatherPillIcon) elMobileWeatherPillIcon.textContent = weatherSettings.icon;
+    if (elMobileWeatherPillText) elMobileWeatherPillText.textContent = weatherSettings.label;
+
+    if (physics.setWeather) {
+      physics.setWeather(type, weatherSettings.grip);
+    }
+
+    showRecordToast(
+      `MÉTÉO : ${weatherSettings.icon} ${weatherSettings.label}`,
+      `${weatherSettings.desc} · Top Speed: ${Math.round(weatherSettings.topSpeed * 100)}%`
+    );
+  });
+
+  if (elBtnWeatherToggle) {
+    elBtnWeatherToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      weatherManager.cycleWeather();
+    });
+  }
+  if (elTouchWeatherToggle) {
+    elTouchWeatherToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      weatherManager.cycleWeather();
+    });
+  }
+
   syncMobileTouchControlsVisibility();
+
+  // -------------------------------------------------------------------------
+  // CIRCUIT SELECTION (CIRCUIT 1 : CLASSIQUE / CIRCUIT 2 : GRAND PRIX PRO)
+  // -------------------------------------------------------------------------
+  const elBtnCircuitToggle = document.getElementById('btn-circuit-toggle');
+  const elHudCircuitLabel = document.getElementById('hud-circuit-label');
+  const elTouchCircuitToggle = document.getElementById('btn-touch-circuit-toggle');
+  const elMobileCircuitBtnText = document.getElementById('mobile-circuit-btn-text');
+  const elBtnWelcomeCircuit1 = document.getElementById('btn-welcome-circuit-1');
+  const elBtnWelcomeCircuit2 = document.getElementById('btn-welcome-circuit-2');
+
+  function syncCircuitUI() {
+    const isC2 = currentCircuitId === 'circuit_2';
+    if (elBtnCircuitToggle) {
+      elBtnCircuitToggle.classList.toggle('is-circuit-2', isC2);
+      elBtnCircuitToggle.title = isC2
+        ? 'Circuit actuel : Circuit 2 (Expert · 19 Virages) · Cliquer pour Circuit 1 (K)'
+        : 'Circuit actuel : Circuit 1 (Classique · 6 Virages) · Cliquer pour Circuit 2 (K)';
+    }
+    if (elHudCircuitLabel) {
+      elHudCircuitLabel.textContent = isC2 ? 'C2 EXP' : 'C1';
+    }
+    if (elTouchCircuitToggle) {
+      elTouchCircuitToggle.classList.toggle('is-circuit-2', isC2);
+    }
+    if (elMobileCircuitBtnText) {
+      elMobileCircuitBtnText.textContent = isC2 ? 'C2 : EXPERT (19 VIRAGES)' : 'C1 : CLASSIQUE';
+    }
+    if (elBtnWelcomeCircuit1) {
+      elBtnWelcomeCircuit1.classList.toggle('active', !isC2);
+    }
+    if (elBtnWelcomeCircuit2) {
+      elBtnWelcomeCircuit2.classList.toggle('active', isC2);
+    }
+  }
+
+  async function switchCircuit(newCircuitId, autoStart = false) {
+    if (newCircuitId === currentCircuitId && !autoStart) return;
+    currentCircuitId = newCircuitId;
+    try {
+      localStorage.setItem('fast_racers_circuit_id', currentCircuitId);
+    } catch (_e) {}
+
+    cancelF1StartCountdown();
+    hideFinishOverlay();
+    hideLapSplit();
+
+    activeSplineData = getTrackSplineForCircuit(currentCircuitId, baseSplineData);
+    splineData = activeSplineData;
+    updateSectorNames(activeSplineData);
+
+    // 1. Remove & dispose old coaster visual track
+    if (coaster) {
+      if (coaster.trackGroup) {
+        scene.remove(coaster.trackGroup);
+        disposeGroupGeometries(coaster.trackGroup);
+      }
+      if (coaster.underTrackLedGroup) {
+        scene.remove(coaster.underTrackLedGroup);
+        disposeGroupGeometries(coaster.underTrackLedGroup);
+      }
+      if (coaster.debugGroup) {
+        scene.remove(coaster.debugGroup);
+        disposeGroupGeometries(coaster.debugGroup);
+      }
+    }
+
+    // 2. Build new coaster track from activeSplineData
+    coaster = buildCoasterTrack(activeSplineData);
+    scene.add(coaster.trackGroup);
+    if (coaster.underTrackLedGroup) {
+      scene.add(coaster.underTrackLedGroup);
+    }
+    scene.add(coaster.debugGroup);
+
+    // Track GLB visibility sync
+    if (trackGlbScene) {
+      const showGlb = currentCircuitId === 'circuit_1' && loadedGlbStatus.track;
+      trackGlbScene.visible = showGlb;
+      coaster.trackGroup.visible = !showGlb;
+    } else {
+      coaster.trackGroup.visible = true;
+    }
+
+    // 3. Rebuild physics controller with new track spline & road mesh collider
+    const prevAutopilot = physics ? physics.state.autopilot : false;
+    const prevWeather = physics ? physics.state.weatherType : 'clear';
+    const prevGrip = physics ? physics.state.gripMultiplier : 1.0;
+
+    physics = await createKartPhysicsController(
+      activeSplineData,
+      manifest,
+      coaster.roadGeo
+    );
+    attachPhysicsCallbacks();
+    physics.setAutopilot(prevAutopilot);
+    physics.setWeather(prevWeather, prevGrip);
+    ghostVehicleManager.setPhysics(physics);
+    ghostVehicleManager.clearGhost();
+    physics.resetToStart();
+
+    // 4. Update camera position to new track start
+    const st = physics.state;
+    camCurrentPos.copy(st.position).addScaledVector(st.tangent, -0.0154).addScaledVector(st.normal, 0.0074);
+    camCurrentLookAt.copy(st.position).addScaledVector(st.tangent, 0.024).addScaledVector(st.normal, 0.0030);
+
+    // 5. Re-render minimap radar background
+    initMinimap(activeSplineData);
+
+    // 6. Sync UI
+    syncCircuitUI();
+
+    const currMeta = CIRCUITS.find((c) => c.id === currentCircuitId) || CIRCUITS[0];
+    showRecordToast(
+      `CIRCUIT : ${currMeta.shortName.toUpperCase()} 🏁`,
+      `${currMeta.levelLabel} · ${currMeta.turnsCount} VIRAGES`
+    );
+
+    if (autoStart) {
+      startF1StartCountdown();
+    }
+  }
+
+  syncCircuitUI();
+
+  if (elBtnCircuitToggle) {
+    elBtnCircuitToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchCircuit(currentCircuitId === 'circuit_1' ? 'circuit_2' : 'circuit_1');
+    });
+  }
+
+  if (elTouchCircuitToggle) {
+    elTouchCircuitToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchCircuit(currentCircuitId === 'circuit_1' ? 'circuit_2' : 'circuit_1');
+    });
+  }
+
+  if (elBtnWelcomeCircuit1) {
+    elBtnWelcomeCircuit1.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchCircuit('circuit_1');
+    });
+  }
+
+  if (elBtnWelcomeCircuit2) {
+    elBtnWelcomeCircuit2.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchCircuit('circuit_2');
+    });
+  }
 
   function showWelcomeDialog() {
     if (elWelcomeOverlay) {
@@ -2747,6 +3223,16 @@ async function initApp() {
   window.addEventListener('keydown', (e) => {
     if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName) && !e.target.readOnly) return;
     if (e.repeat) return;
+    if (e.code === 'KeyC') {
+      e.preventDefault();
+      weatherManager.cycleWeather();
+      return;
+    }
+    if (e.code === 'KeyT') {
+      e.preventDefault();
+      toggleTouchControlsForce();
+      return;
+    }
     if (e.code === 'KeyL') {
       e.preventDefault();
       toggleLeaderboardModal();
@@ -2760,6 +3246,11 @@ async function initApp() {
         on ? 'GHOST CAR: ON 👻' : 'GHOST CAR: OFF 👻',
         on ? 'Visual benchmark enabled' : 'Ghost vehicle hidden'
       );
+      return;
+    }
+    if (e.code === 'KeyK') {
+      e.preventDefault();
+      switchCircuit(currentCircuitId === 'circuit_1' ? 'circuit_2' : 'circuit_1');
       return;
     }
     if (e.code === 'Escape') {
@@ -3039,7 +3530,7 @@ async function initApp() {
     testCandidate(kartWorldPt);
 
     // 2. Test 360 points along the 3D coaster track spline
-    const samples = splineData.samples;
+    const samples = activeSplineData.samples;
     for (let i = 0; i < samples.length; i += 2) {
       const p = samples[i].position;
       _dofKartPos.set(p[0], p[1], p[2]);
@@ -3090,6 +3581,9 @@ async function initApp() {
     if (coaster.updateUnderTrackLed) {
       coaster.updateUnderTrackLed(elapsedTime, settings.trackGlowIntensity ?? 1.00);
     }
+
+    // 3b. Step Dynamic Weather System (Rain particles, puddle ripples, lightning flashes, scene fog & grip)
+    weatherManager.update(dt, elapsedTime, physics);
 
     // 4. Update Camera (Chase / Visor POV / Diorama / Helicopter / Inspector / Course Pan / Room Panorama / Gemini 4 Dresser / Keyboard Heli)
     updateCamera(dt, elapsedTime, st);

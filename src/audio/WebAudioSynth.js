@@ -71,6 +71,23 @@ function createProceduralNoiseBuffer(targetCtx) {
 }
 
 /**
+ * Creates a soft-clipping sigmoid curve for organic engine cylinder saturation.
+ * @param {number=} amount
+ * @return {!Float32Array}
+ */
+function createSoftDistortionCurve(amount = 22) {
+  const k = typeof amount === 'number' ? amount : 22;
+  const n_samples = 44100;
+  const curve = new Float32Array(n_samples);
+  const deg = Math.PI / 180;
+  for (let i = 0; i < n_samples; ++i) {
+    const x = (i * 2) / n_samples - 1;
+    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+  }
+  return curve;
+}
+
+/**
  * Creates the hybrid single-mic + procedural racing audio engine.
  * @param {!Object=} options
  * @return {!Object}
@@ -95,6 +112,29 @@ export function createDeskRacerHybridAudio(options = {}) {
   // Active looping AudioBufferSourceNodes & their GainNodes
   const loopNodes = {};
   const oneShotBuffers = { sputter: [] };
+
+  // --- PURE PROCEDURAL ENGINE SOUND EFFECT SYSTEM NODES ---
+  // High-fidelity Web Audio API synthesis modulating pitch directly from car speed:
+  // 1. Primary cylinder combustion pulse oscillator (sawtooth/shaped pulse tracking speed f0)
+  let procCylinderOsc = null;
+  // 2. Secondary harmonic overtone oscillator (2nd harmonic with mechanical detune)
+  let procHarmonicOsc = null;
+  // 3. Third harmonic / valve event oscillator (3rd harmonic partial)
+  let procExhaustOsc = null;
+  // 4. Sub-bass chassis rumble oscillator (<85 Hz sine wave)
+  let procSubOsc = null;
+  let procSubLowpass = null;
+  let procSubGain = null;
+  // 5. Dynamic throttle air intake rush noise
+  let procIntakeNoiseSrc = null;
+  let procIntakeFilter = null;
+  let procIntakeGain = null;
+  // 6. Pre-filter bus, tuned exhaust expansion chamber resonator, and soft-clip distortion
+  let procPreFilterGain = null;
+  let procExhaustFilter = null;
+  let procDistortionNode = null;
+  // 7. Master procedural engine output gain
+  let procEngineGain = null;
 
   // --- ENGINE REVVING SYNTHESIS NODES ---
   // Clean LFE Sub-Harmonic Sine Resonator (<95 Hz)
@@ -295,6 +335,9 @@ export function createDeskRacerHybridAudio(options = {}) {
     misfireDuckGain.gain.value = 1.0;
     misfireDuckGain.connect(lowShelfFilter);
 
+    // Create shared noise buffer for procedural engine intake and tire screech
+    noiseBuffer = createProceduralNoiseBuffer(ctx);
+
     // 5. Clean <95 Hz sub-harmonic sine resonator
     rumbleSubOsc = ctx.createOscillator();
     rumbleSubOsc.type = 'sine';
@@ -314,8 +357,6 @@ export function createDeskRacerHybridAudio(options = {}) {
     rumbleSubOsc.start();
 
     // 6. Responsive Engine Revving Intake Growl Synthesizer
-    // A secondary harmonic oscillator that tracks throttle and virtual RPM,
-    // giving that aggressive "VROOOM" mechanical throatiness when stepping on the throttle!
     intakeGrowlOsc = ctx.createOscillator();
     intakeGrowlOsc.type = 'sawtooth';
     intakeGrowlOsc.frequency.value = 85.0;
@@ -333,9 +374,111 @@ export function createDeskRacerHybridAudio(options = {}) {
     intakeGrowlGain.connect(misfireDuckGain);
     intakeGrowlOsc.start();
 
-    // 7. Procedural Tire Screech Synthesizer
-    noiseBuffer = createProceduralNoiseBuffer(ctx);
+    // -------------------------------------------------------------------------
+    // 6b. PROCEDURAL ENGINE SOUND EFFECT SYSTEM (WEB AUDIO API)
+    // Adjusts pitch dynamically and continuously based on current car speed
+    // -------------------------------------------------------------------------
+    // 1. Primary Cylinder Combustion Pulse Oscillator (sawtooth wave tracking speed f0)
+    procCylinderOsc = ctx.createOscillator();
+    procCylinderOsc.type = 'sawtooth';
+    procCylinderOsc.frequency.value = 34.0;
 
+    // 2. Secondary Harmonic Overtone Oscillator (2nd harmonic with subtle mechanical detuning)
+    procHarmonicOsc = ctx.createOscillator();
+    procHarmonicOsc.type = 'triangle';
+    procHarmonicOsc.frequency.value = 69.2;
+
+    // 3. Third Harmonic / Exhaust Valve Resonance Oscillator (3rd harmonic partial)
+    procExhaustOsc = ctx.createOscillator();
+    procExhaustOsc.type = 'sawtooth';
+    procExhaustOsc.frequency.value = 104.4;
+
+    // 4. Sub-bass Body Rumble Oscillator (<85 Hz sine)
+    procSubOsc = ctx.createOscillator();
+    procSubOsc.type = 'sine';
+    procSubOsc.frequency.value = 17.0;
+
+    procSubLowpass = ctx.createBiquadFilter();
+    procSubLowpass.type = 'lowpass';
+    procSubLowpass.frequency.value = 85.0;
+    procSubLowpass.Q.value = 0.707;
+
+    procSubGain = ctx.createGain();
+    procSubGain.gain.value = 0.42;
+
+    procSubOsc.connect(procSubLowpass);
+    procSubLowpass.connect(procSubGain);
+
+    // 5. Dynamic Air Intake Rush Noise
+    procIntakeNoiseSrc = ctx.createBufferSource();
+    procIntakeNoiseSrc.buffer = noiseBuffer;
+    procIntakeNoiseSrc.loop = true;
+
+    procIntakeFilter = ctx.createBiquadFilter();
+    procIntakeFilter.type = 'bandpass';
+    procIntakeFilter.frequency.value = 1400;
+    procIntakeFilter.Q.value = 2.4;
+
+    procIntakeGain = ctx.createGain();
+    procIntakeGain.gain.value = 0.0;
+
+    procIntakeNoiseSrc.connect(procIntakeFilter);
+    procIntakeFilter.connect(procIntakeGain);
+
+    // 6. Pre-filter mix bus for cylinder & harmonic oscillators
+    procPreFilterGain = ctx.createGain();
+    procPreFilterGain.gain.value = 0.38;
+
+    const cylGain = ctx.createGain();
+    cylGain.gain.value = 0.65;
+    procCylinderOsc.connect(cylGain);
+    cylGain.connect(procPreFilterGain);
+
+    const harmGain = ctx.createGain();
+    harmGain.gain.value = 0.42;
+    procHarmonicOsc.connect(harmGain);
+    harmGain.connect(procPreFilterGain);
+
+    const exhOscGain = ctx.createGain();
+    exhOscGain.gain.value = 0.28;
+    procExhaustOsc.connect(exhOscGain);
+    exhOscGain.connect(procPreFilterGain);
+
+    // 7. Tuned Exhaust Expansion Chamber Resonator Filter (Sweeping Peaking Filter)
+    procExhaustFilter = ctx.createBiquadFilter();
+    procExhaustFilter.type = 'peaking';
+    procExhaustFilter.frequency.value = 380;
+    procExhaustFilter.Q.value = 2.2;
+    procExhaustFilter.gain.value = 7.5; // Acoustic formant boost
+
+    // 8. Soft-clipping Waveshaper for Warm Combustion Saturation
+    procDistortionNode = ctx.createWaveShaper();
+    procDistortionNode.curve = createSoftDistortionCurve(18);
+    procDistortionNode.oversample = '2x';
+
+    // 9. Master Procedural Engine Gain
+    procEngineGain = ctx.createGain();
+    procEngineGain.gain.value = 0.42;
+
+    // Connect procedural engine chain:
+    // Oscillators -> PreFilter -> Exhaust Resonator -> Distortion -> EngineGain -> misfireDuckGain
+    procPreFilterGain.connect(procExhaustFilter);
+    procExhaustFilter.connect(procDistortionNode);
+    procDistortionNode.connect(procEngineGain);
+
+    procSubGain.connect(procEngineGain);
+    procIntakeGain.connect(procEngineGain);
+
+    procEngineGain.connect(misfireDuckGain);
+
+    // Start all procedural engine oscillators
+    procCylinderOsc.start();
+    procHarmonicOsc.start();
+    procExhaustOsc.start();
+    procSubOsc.start();
+    procIntakeNoiseSrc.start();
+
+    // 7. Procedural Tire Screech Synthesizer
     tireNoiseSrc = ctx.createBufferSource();
     tireNoiseSrc.buffer = noiseBuffer;
     tireNoiseSrc.loop = true;
@@ -765,6 +908,101 @@ export function createDeskRacerHybridAudio(options = {}) {
     }
 
     // =========================================================================
+    // 1b. PROCEDURAL ENGINE SOUND EFFECT SYSTEM (WEB AUDIO API)
+    // Pure procedural synthesizer adjusting pitch dynamically based on car speed
+    // =========================================================================
+    let targetProcPitch = 34.0;
+    let procBaseLevel = 0.40;
+    if (procCylinderOsc && procEngineGain) {
+      // 1. Calculate continuous speed-dependent fundamental frequency (f0):
+      // - 0 km/h stationary: ~34 Hz (deep single-cylinder lope, ~1020 RPM equivalent)
+      // - Top speed (~75 km/h, rawSpeed ~ 0.195 m/s): ~168 Hz
+      // - Turbo boost (>100 km/h, rawSpeed > 0.25 m/s): up to 235 Hz
+      const speedRatio = Math.min(1.5, rawSpeed / 0.195);
+      const speedPitch = 34.0 + speedRatio * 134.0;
+
+      if (isCountdownOrStopped) {
+        if (isAccelerating) {
+          // Stationary revving on starting grid / F1 countdown:
+          // Revs aggressively to 126-136 Hz with rev-limiter sinusoidal bounce
+          const revBounce = 7.5 * Math.sin(nowMs * 0.042);
+          targetProcPitch = 128.0 + revBounce;
+        } else {
+          // Pure stationary idle lope
+          const idleChug = 1.2 * Math.sin(nowMs * 0.0075);
+          targetProcPitch = 34.0 + idleChug;
+        }
+      } else {
+        // In motion: fundamental pitch directly tracks car speed with throttle torque bite
+        const throttleBite = isAccelerating ? 12.0 * Math.max(0.3, throttle) * (1.0 - speedRatio * 0.35) : 0.0;
+        const decelPitchDrop = isBraking ? -16.0 * (1.0 - 0.4 * speedRatio) : (!isAccelerating ? -5.0 : 0.0);
+        const boostPitchSurge = smoothBoostBlend * 26.0;
+        const loadPitchDrop = -smoothHillAndCurlLoad * 12.0;
+
+        targetProcPitch = Math.max(
+          28.0,
+          Math.min(265.0, speedPitch + throttleBite + decelPitchDrop + boostPitchSurge + loadPitchDrop)
+        );
+      }
+
+      const procTimeConst = 0.024;
+      // 1. Primary cylinder combustion oscillator (f0)
+      procCylinderOsc.frequency.setTargetAtTime(targetProcPitch, now, procTimeConst);
+
+      // 2. Harmonic overtone oscillator (2nd harmonic with slight mechanical detuning for rich chorusing)
+      if (procHarmonicOsc) {
+        const harmFreq = targetProcPitch * 2.0 + 1.25;
+        procHarmonicOsc.frequency.setTargetAtTime(harmFreq, now, procTimeConst);
+      }
+
+      // 3. Exhaust valve event oscillator (3rd harmonic partial)
+      if (procExhaustOsc) {
+        const exhFreq = targetProcPitch * 3.0 + 2.4;
+        procExhaustOsc.frequency.setTargetAtTime(exhFreq, now, procTimeConst);
+      }
+
+      // 4. Sub-bass chassis pulse (<80 Hz sine wave)
+      if (procSubOsc && procSubGain) {
+        const subFreq = Math.min(80.0, Math.max(20.0, targetProcPitch * 0.5));
+        procSubOsc.frequency.setTargetAtTime(subFreq, now, 0.03);
+        const targetSubGain = Math.min(
+          0.48,
+          0.30 + 0.14 * Math.min(1.0, speedRatio) + 0.16 * Math.max(0.0, smoothHillAndCurlLoad)
+        );
+        procSubGain.gain.setTargetAtTime(targetSubGain, now, 0.04);
+      }
+
+      // 5. Sweeping acoustic exhaust chamber resonant filter
+      if (procExhaustFilter) {
+        const exhFilterFreq = Math.min(1150, Math.max(340, 320 + targetProcPitch * 3.6 + speedRatio * 160));
+        procExhaustFilter.frequency.setTargetAtTime(exhFilterFreq, now, 0.035);
+        const exhBoost = 6.5 + 3.0 * Math.min(1.0, speedRatio) + (isAccelerating ? 2.0 : 0.0);
+        procExhaustFilter.gain.setTargetAtTime(exhBoost, now, 0.04);
+      }
+
+      // 6. Dynamic throttle air intake rush noise
+      if (procIntakeFilter && procIntakeGain) {
+        const intakeFilterFreq = Math.min(
+          2700,
+          Math.max(1050, 1100 + speedRatio * 1100 + (isAccelerating ? 350 : 0))
+        );
+        procIntakeFilter.frequency.setTargetAtTime(intakeFilterFreq, now, 0.04);
+
+        const targetIntakeGain = isAccelerating
+          ? Math.min(0.24, 0.05 + 0.14 * Math.max(0.2, throttle) + 0.06 * smoothBoostBlend)
+          : Math.min(0.04, 0.02 * speedRatio);
+        procIntakeGain.gain.setTargetAtTime(targetIntakeGain, now, 0.035);
+      }
+
+      // 7. Master procedural engine gain scaling with speed & throttle
+      procBaseLevel = Math.min(
+        0.58,
+        0.38 + 0.15 * Math.min(1.0, speedRatio) + (isAccelerating ? 0.06 : 0.0)
+      );
+      procEngineGain.gain.setTargetAtTime(procBaseLevel, now, 0.04);
+    }
+
+    // =========================================================================
     // 2. TIRE SCREECHING & SKID MODULATION
     // =========================================================================
     // Trigger conditions:
@@ -861,6 +1099,8 @@ export function createDeskRacerHybridAudio(options = {}) {
       stemsLoaded,
       virtualRpm: Number(virtualRpm.toFixed(2)),
       normSpeed: Number(smoothNormSpeed.toFixed(2)),
+      procPitchHz: Number(targetProcPitch.toFixed(1)),
+      procEngineGain: Number(procBaseLevel.toFixed(2)),
       cruisePlaybackRate: Number(targetCruiseRate.toFixed(2)),
       skidIntensity: Number(smoothSkidIntensity.toFixed(2)),
       scrapeIntensity: Number(smoothScrapeIntensity.toFixed(2)),

@@ -286,6 +286,8 @@ export async function createKartPhysicsController(splineData, manifest, roadGeo)
     prevHighCurb: false,
     keys: { forward: false, backward: false, left: false, right: false },
     topSpeedMultiplier: 1.0,
+    weatherType: 'clear', // 'clear', 'rain', 'fog'
+    gripMultiplier: 1.0, // 1.0 clear, 0.68 rain, 0.85 fog
     steerInput: 0.0,
     isDrifting: false,
     driftDir: 0, // -1 left, +1 right
@@ -744,15 +746,16 @@ export async function createKartPhysicsController(splineData, manifest, roadGeo)
       } else {
         const gravitySlopeAccel = -frame.slope * 0.22;
         let engineAccel = 0.0;
+        const grip = state.gripMultiplier || 1.0;
         if (throttle > 0) {
           // If currently moving backward, brake briskly first, then accelerate at manualAccel (0.204 m/s²)
           engineAccel =
             state.speed < -0.01
-              ? 1.25 * throttle
-              : (state.boostActive > 0 ? 0.36 : manualAccel) * throttle;
+              ? 1.25 * throttle * grip
+              : (state.boostActive > 0 ? 0.36 : manualAccel * (0.82 + 0.18 * grip)) * throttle;
         } else {
-          // Pressing S / Down: brake briskly if moving forward, or reverse gently
-          engineAccel = state.speed > 0.01 ? 1.35 * throttle : 0.19 * throttle;
+          // Pressing S / Down (FREIN): brake briskly if moving forward (modulated by surface grip), or reverse gently
+          engineAccel = state.speed > 0.01 ? 1.35 * throttle * (0.70 + 0.30 * grip) : 0.19 * throttle;
         }
         state.speed += (engineAccel + gravitySlopeAccel) * clampedDt;
         if (state.speed > currentManualMaxSpeed) {
@@ -917,7 +920,9 @@ export async function createKartPhysicsController(splineData, manifest, roadGeo)
         state.speed * (-Math.sin(state.headingYaw)) +
         turnRight * 0.024 * (0.35 + 0.65 * Math.min(1.0, Math.abs(state.speed) / 0.10));
     } else {
-      lateralDot = state.speed * (-Math.sin(state.headingYaw)) * 0.82;
+      const wetLateralSlip =
+        state.weatherType === 'rain' ? 1.08 : state.weatherType === 'fog' ? 0.94 : 0.82;
+      lateralDot = state.speed * (-Math.sin(state.headingYaw)) * wetLateralSlip;
     }
     state.lateralVel = lateralDot;
     state.lateralOffset += lateralDot * clampedDt;
@@ -1149,6 +1154,10 @@ export async function createKartPhysicsController(splineData, manifest, roadGeo)
     clearTouchKeys,
     setMotionSteer: (val) => {
       state.motionSteer = THREE.MathUtils.clamp(val, -1.0, 1.0);
+    },
+    setWeather: (type, grip = 1.0) => {
+      state.weatherType = type;
+      state.gripMultiplier = THREE.MathUtils.clamp(grip, 0.5, 1.2);
     },
     notifyLightsOut,
     onLapComplete: (cb) => {

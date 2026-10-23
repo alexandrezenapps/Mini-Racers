@@ -257,6 +257,166 @@ body {
   border-color: rgba(255, 255, 255, 0.22);
 }
 
+/* Circuit Switcher Button in HUD Header */
+.hud-circuit-btn {
+  width: auto !important;
+  min-width: 62px;
+  padding: 0 10px;
+  gap: 6px;
+  font-family: 'Orbitron', sans-serif;
+  font-style: italic;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  background: rgba(8, 14, 26, 0.88);
+  border-color: rgba(0, 229, 255, 0.55);
+  color: #ffffff;
+}
+
+.hud-circuit-btn .hud-circuit-flag {
+  font-size: 14px;
+  transform: skewX(12deg);
+}
+
+.hud-circuit-btn .hud-circuit-label {
+  color: #00e5ff;
+  transform: skewX(12deg);
+  white-space: nowrap;
+}
+
+.hud-circuit-btn.is-circuit-2 {
+  border-color: rgba(255, 157, 0, 0.75);
+  background: linear-gradient(135deg, rgba(28, 18, 6, 0.90) 0%, rgba(14, 10, 6, 0.92) 100%);
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.88),
+    0 0 14px rgba(255, 157, 0, 0.35);
+}
+
+.hud-circuit-btn.is-circuit-2 .hud-circuit-label {
+  color: #ffaa00;
+  text-shadow: 0 0 8px rgba(255, 170, 0, 0.65);
+}
+
+.hud-circuit-btn:hover {
+  transform: skewX(-12deg) scale(1.04);
+}
+
+/* Circuit Selector Card in Welcome Dialog & Settings */
+.welcome-circuit-block {
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.circuit-selector-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: 100%;
+}
+
+.circuit-card-btn {
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgba(12, 18, 30, 0.72);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: left;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.circuit-card-btn:hover {
+  border-color: rgba(0, 229, 255, 0.65);
+  background: rgba(16, 26, 44, 0.85);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65);
+}
+
+.circuit-card-btn.active {
+  border-color: #00e5ff;
+  background: linear-gradient(145deg, rgba(0, 229, 255, 0.18) 0%, rgba(8, 16, 28, 0.88) 100%);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.85),
+    0 0 18px rgba(0, 229, 255, 0.28);
+}
+
+.circuit-card-btn[data-circuit="circuit_2"].active {
+  border-color: #ff9d00;
+  background: linear-gradient(145deg, rgba(255, 157, 0, 0.22) 0%, rgba(22, 14, 6, 0.88) 100%);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.85),
+    0 0 20px rgba(255, 157, 0, 0.35);
+}
+
+.circuit-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.circuit-card-badge {
+  font-family: 'Orbitron', sans-serif;
+  font-style: italic;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.badge-c1 {
+  background: rgba(0, 229, 255, 0.22);
+  color: #00e5ff;
+  border: 1px solid rgba(0, 229, 255, 0.55);
+}
+
+.badge-c2 {
+  background: rgba(255, 157, 0, 0.25);
+  color: #ffaa00;
+  border: 1px solid rgba(255, 157, 0, 0.65);
+}
+
+.circuit-card-turns {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.06em;
+}
+
+.circuit-card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-style: italic;
+  font-size: 13.5px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+.circuit-card-sub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.35;
+}
+
+/* Mobile circuit pill button */
+.mobile-circuit-pill {
+  border-color: rgba(0, 229, 255, 0.45) !important;
+}
+
+.mobile-circuit-pill.is-circuit-2 {
+  border-color: rgba(255, 157, 0, 0.65) !important;
+  color: #ffaa00 !important;
+  box-shadow: 0 0 12px rgba(255, 157, 0, 0.28) !important;
+}
+
 .hud-lap-widget {
   pointer-events: none;
   text-align: right;
@@ -1172,20 +1332,70 @@ body {
   text-align: center;
 }
 
-/* Mobile Controls Base State */
-.mobile-touch-controls {
-  display: none !important;
+/* Top-Right Weather & Touch Force Buttons */
+.hud-weather-btn {
+  color: #ffd27d !important;
+  border-color: rgba(255, 210, 125, 0.45) !important;
+  position: relative;
+  font-size: 14px;
+}
+
+.hud-weather-btn:hover {
+  border-color: #ffd27d !important;
+  box-shadow: 0 0 16px rgba(255, 210, 125, 0.55), 0 3px 10px rgba(0, 0, 0, 0.88) !important;
+}
+
+.hud-weather-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffd27d;
+  box-shadow: 0 0 8px #ffd27d, 0 0 14px rgba(255, 210, 125, 0.85);
+  animation: pulseDot 1.4s infinite ease-in-out;
+}
+
+.hud-touch-btn {
+  color: #00e5ff !important;
+  border-color: rgba(0, 229, 255, 0.35) !important;
+  position: relative;
+}
+
+.hud-touch-btn.is-active {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.28) 0%, rgba(6, 10, 18, 0.88) 100%) !important;
+  border-color: #00e5ff !important;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.55) !important;
 }
 
 /* ============================================================================
    MOBILE TOUCH CONTROLS (PORTRAIT & HORIZONTAL LANDSCAPE MODES)
-   Active whenever touch is supported, in low-height landscape, or mobile width
+   Bouton FREINAGE à gauche, Bouton ACCÉLÉRATEUR (AVANCER) à droite
    ============================================================================ */
+.mobile-touch-controls {
+  display: none !important;
+}
+
+/* Revealed on touch devices, mobile viewports, or when manually forced */
 body.is-touch-device .mobile-touch-controls:not(.hidden),
-@media (pointer: coarse) and (max-height: 850px),
-@media (max-width: 1024px) and (orientation: landscape) and (max-height: 600px),
-@media (max-width: 768px),
-@media (max-aspect-ratio: 4/5) {
+body.touch-controls-forced .mobile-touch-controls:not(.hidden) {
+  display: flex !important;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: max(10px, env(safe-area-inset-bottom, 10px));
+  padding: 0 max(12px, env(safe-area-inset-left, 12px)) 0 max(12px, env(safe-area-inset-right, 12px));
+  justify-content: space-between;
+  align-items: flex-end;
+  z-index: 45;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+@media (pointer: coarse), (max-width: 1024px) {
   .mobile-touch-controls:not(.hidden) {
     display: flex !important;
     position: fixed;
@@ -1195,184 +1405,261 @@ body.is-touch-device .mobile-touch-controls:not(.hidden),
     padding: 0 max(12px, env(safe-area-inset-left, 12px)) 0 max(12px, env(safe-area-inset-right, 12px));
     justify-content: space-between;
     align-items: flex-end;
-    z-index: 25;
+    z-index: 45;
     pointer-events: none;
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
   }
+}
 
-  .mobile-touch-controls.hidden {
-    display: none !important;
-  }
+.mobile-touch-controls.hidden {
+  display: none !important;
+}
 
-  .mobile-ctrl-cluster {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    pointer-events: auto;
-    touch-action: none;
-  }
+.mobile-ctrl-cluster {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  touch-action: none;
+}
 
-  .mobile-center-cluster {
-    margin-bottom: 4px;
-  }
+.mobile-left-cluster {
+  align-items: flex-end;
+  gap: 8px;
+}
 
-  .mobile-ctrl-pill-btn {
-    pointer-events: auto;
-    cursor: pointer;
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    border-radius: 999px;
-    background: rgba(6, 12, 22, 0.88);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1.5px solid rgba(0, 229, 255, 0.45);
-    color: #ffffff;
-    font-family: 'Orbitron', sans-serif;
-    font-size: clamp(9px, 1.8vw, 11px);
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
-    transition: all 0.15s ease;
-  }
+.mobile-right-cluster {
+  align-items: flex-end;
+  gap: 8px;
+}
 
-  .mobile-ctrl-pill-btn.active {
-    border-color: #00e5ff;
-    background: linear-gradient(95deg, rgba(0, 229, 255, 0.32) 0%, rgba(6, 12, 22, 0.92) 100%);
-    box-shadow: 0 0 16px rgba(0, 229, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.7);
-  }
+.mobile-center-cluster {
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
 
-  .mobile-ctrl-pill-btn:active {
-    transform: scale(0.96);
-  }
+.mobile-ctrl-pill-btn {
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(6, 12, 22, 0.90);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(0, 229, 255, 0.45);
+  color: #ffffff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(9px, 1.8vw, 11px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+  transition: all 0.15s ease;
+}
 
-  .mobile-ctrl-btn {
-    position: relative;
-    width: clamp(62px, 16vw, 84px);
-    height: clamp(52px, 13vw, 68px);
-    padding: 0;
-    border-radius: 12px;
-    background: linear-gradient(
-      180deg,
-      rgba(16, 24, 42, 0.86) 0%,
-      rgba(8, 13, 24, 0.94) 100%
-    );
-    border: 1.5px solid rgba(255, 255, 255, 0.22);
-    box-shadow:
-      0 6px 18px rgba(0, 0, 0, 0.65),
-      inset 0 1px 0 rgba(255, 255, 255, 0.16);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: #f4f7ff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
-    transition:
-      transform 0.05s ease,
-      background 0.08s ease,
-      border-color 0.08s ease,
-      box-shadow 0.08s ease,
-      color 0.08s ease;
-  }
+.mobile-ctrl-pill-btn.active {
+  border-color: #00e5ff;
+  background: linear-gradient(95deg, rgba(0, 229, 255, 0.32) 0%, rgba(6, 12, 22, 0.92) 100%);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.7);
+}
 
-  .mobile-ctrl-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    pointer-events: none;
-  }
+.mobile-weather-pill {
+  border-color: rgba(255, 210, 125, 0.45);
+  color: #ffd27d;
+}
 
-  .mobile-ctrl-svg {
-    width: clamp(20px, 5.2vw, 26px);
-    height: clamp(20px, 5.2vw, 26px);
-    stroke: currentColor;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
-  }
+.mobile-weather-pill:hover,
+.mobile-weather-pill:active {
+  background: linear-gradient(95deg, rgba(255, 210, 125, 0.28) 0%, rgba(6, 12, 22, 0.92) 100%);
+  border-color: #ffd27d;
+  color: #ffffff;
+}
 
-  .mobile-ctrl-label {
-    font-family: 'Orbitron', sans-serif;
-    font-size: clamp(8px, 2.1vw, 10px);
-    font-weight: 800;
-    font-style: italic;
-    letter-spacing: 0.06em;
-    line-height: 1;
-    color: rgba(235, 243, 255, 0.88);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-  }
+.mobile-ctrl-pill-btn:active {
+  transform: scale(0.96);
+}
 
-  /* Left/Right Steer Buttons (A / D) */
-  .mobile-ctrl-steer {
-    border-color: rgba(255, 210, 125, 0.38);
-    color: #ffe2a8;
-  }
+.mobile-ctrl-btn {
+  position: relative;
+  width: clamp(58px, 14vw, 76px);
+  height: clamp(54px, 13vw, 70px);
+  padding: 0;
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(16, 24, 42, 0.92) 0%,
+    rgba(8, 13, 24, 0.96) 100%
+  );
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #f4f7ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.05s ease,
+    background 0.08s ease,
+    border-color 0.08s ease,
+    box-shadow 0.08s ease,
+    color 0.08s ease;
+}
 
-  .mobile-ctrl-steer.is-pressed {
-    background: linear-gradient(
-      180deg,
-      rgba(255, 190, 76, 0.42) 0%,
-      rgba(255, 138, 36, 0.28) 100%
-    );
-    border-color: #ffd27d;
-    color: #ffffff;
-    box-shadow:
-      0 0 20px rgba(255, 180, 60, 0.55),
-      inset 0 1px 0 rgba(255, 255, 255, 0.38);
-    transform: translateY(2px) scale(0.95);
-  }
+.mobile-ctrl-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  pointer-events: none;
+}
 
-  /* Accelerate Button (W) */
-  .mobile-ctrl-accel {
-    border-color: rgba(56, 232, 255, 0.45);
-    color: #64f0ff;
-  }
+.mobile-ctrl-svg {
+  width: clamp(22px, 5.2vw, 28px);
+  height: clamp(22px, 5.2vw, 28px);
+  stroke: currentColor;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
 
-  .mobile-ctrl-accel.is-pressed {
-    background: linear-gradient(
-      180deg,
-      rgba(0, 216, 255, 0.44) 0%,
-      rgba(0, 140, 210, 0.30) 100%
-    );
-    border-color: #6ef5ff;
-    color: #ffffff;
-    box-shadow:
-      0 0 22px rgba(0, 224, 255, 0.58),
-      inset 0 1px 0 rgba(255, 255, 255, 0.42);
-    transform: translateY(2px) scale(0.95);
-  }
+.mobile-ctrl-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(8.5px, 2.1vw, 10.5px);
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: rgba(235, 243, 255, 0.92);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
 
-  /* Brake Button (S) */
-  .mobile-ctrl-brake {
-    border-color: rgba(255, 110, 98, 0.42);
-    color: #ff8e85;
-  }
+/* Left: Steering Buttons (A / D) */
+.mobile-ctrl-steer {
+  border-color: rgba(255, 210, 125, 0.38);
+  color: #ffe2a8;
+}
 
-  .mobile-ctrl-brake.is-pressed {
-    background: linear-gradient(
-      180deg,
-      rgba(255, 82, 68, 0.46) 0%,
-      rgba(195, 34, 30, 0.32) 100%
-    );
-    border-color: #ff8a80;
-    color: #ffffff;
-    box-shadow:
-      0 0 22px rgba(255, 82, 68, 0.58),
-      inset 0 1px 0 rgba(255, 255, 255, 0.38);
-    transform: translateY(2px) scale(0.95);
-  }
+.mobile-ctrl-steer.is-pressed {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 190, 76, 0.45) 0%,
+    rgba(255, 138, 36, 0.30) 100%
+  );
+  border-color: #ffd27d;
+  color: #ffffff;
+  box-shadow:
+    0 0 20px rgba(255, 180, 60, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  transform: translateY(2px) scale(0.95);
+}
+
+/* Left: Dedicated Brake Button (FREIN - S) */
+.mobile-ctrl-brake {
+  width: clamp(68px, 16.5vw, 92px);
+  height: clamp(60px, 14.5vw, 78px);
+  border-color: rgba(255, 82, 82, 0.55);
+  background: linear-gradient(
+    180deg,
+    rgba(40, 14, 18, 0.92) 0%,
+    rgba(22, 8, 10, 0.96) 100%
+  );
+  color: #ff8a80;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.78),
+    0 0 14px rgba(255, 68, 68, 0.25),
+    inset 0 1px 0 rgba(255, 150, 150, 0.28);
+}
+
+.mobile-ctrl-brake.is-pressed {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 60, 50, 0.55) 0%,
+    rgba(180, 20, 18, 0.45) 100%
+  );
+  border-color: #ff5252;
+  color: #ffffff;
+  box-shadow:
+    0 0 26px rgba(255, 60, 50, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  transform: translateY(2px) scale(0.95);
+}
+
+/* Right: Prominent Forward Accelerator Button (AVANCER / GAZ - W) */
+.mobile-ctrl-accel-large {
+  width: clamp(84px, 21vw, 116px);
+  height: clamp(64px, 15.5vw, 84px);
+  border-color: rgba(0, 229, 255, 0.65);
+  background: linear-gradient(
+    180deg,
+    rgba(10, 36, 52, 0.94) 0%,
+    rgba(4, 20, 32, 0.98) 100%
+  );
+  color: #38bdf8;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.85),
+    0 0 18px rgba(0, 229, 255, 0.35),
+    inset 0 1px 0 rgba(160, 245, 255, 0.35);
+}
+
+.mobile-accel-svg {
+  width: clamp(26px, 6.2vw, 34px);
+  height: clamp(26px, 6.2vw, 34px);
+  stroke: #38bdf8;
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.8));
+}
+
+.mobile-ctrl-accel-label {
+  font-size: clamp(9.5px, 2.4vw, 12px) !important;
+  color: #ffffff !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.85);
+}
+
+.mobile-ctrl-accel.is-pressed {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 229, 255, 0.52) 0%,
+    rgba(0, 150, 220, 0.38) 100%
+  );
+  border-color: #00e5ff;
+  color: #ffffff;
+  box-shadow:
+    0 0 28px rgba(0, 229, 255, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transform: translateY(2px) scale(0.95);
+}
+
+/* Right: Reset auxiliary button */
+.mobile-ctrl-reset {
+  width: clamp(48px, 11vw, 62px);
+  height: clamp(48px, 11vw, 62px);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.mobile-ctrl-reset.is-pressed {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ffffff;
+  color: #ffffff;
+  transform: translateY(2px) scale(0.95);
 }
 
 /* ============================================================================

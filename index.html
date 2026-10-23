@@ -60,6 +60,18 @@
               </div>
             </div>
 
+            <!-- Top-Right Circuit Switcher Button -->
+            <button
+              id="btn-circuit-toggle"
+              class="hud-mute-btn hud-circuit-btn"
+              type="button"
+              aria-label="Changer de circuit (K)"
+              title="Changer de circuit (K) : Circuit 1 / Circuit 2 (Expert)"
+            >
+              <span class="hud-circuit-flag">🏁</span>
+              <span id="hud-circuit-label" class="hud-circuit-label">C1</span>
+            </button>
+
             <!-- Top-Right Fullscreen Toggle Button (Mobile Landscape) -->
             <button
               id="btn-fullscreen-toggle"
@@ -71,6 +83,18 @@
               <svg class="mute-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
               </svg>
+            </button>
+
+            <!-- Top-Right Dynamic Weather Toggle Button -->
+            <button
+              id="btn-weather-toggle"
+              class="hud-mute-btn hud-weather-btn"
+              type="button"
+              aria-label="Changer la météo (C)"
+              title="Météo dynamique (C) : Clair / Pluie / Brouillard"
+            >
+              <span id="hud-weather-icon" class="hud-weather-icon-span">☀️</span>
+              <span id="hud-weather-dot" class="hud-weather-dot"></span>
             </button>
 
             <!-- Top-Right Motion Steering (Gyro) Toggle Button -->
@@ -87,6 +111,21 @@
                 <path d="M12 3v3m0 12v3M3 12h3m12 0h3"></path>
               </svg>
               <span id="hud-gyro-status-dot" class="hud-gyro-status-dot hidden"></span>
+            </button>
+
+            <!-- Top-Right Mobile Touch Controls Force Toggle Button -->
+            <button
+              id="btn-touch-toggle"
+              class="hud-mute-btn hud-touch-btn"
+              type="button"
+              aria-label="Afficher / Masquer boutons tactiles (T)"
+              title="Commandes tactiles écran (T)"
+            >
+              <svg class="mute-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                <line x1="12" y1="18" x2="12.01" y2="18"></line>
+              </svg>
+              <span id="hud-touch-dot" class="hud-gyro-status-dot hidden"></span>
             </button>
 
             <!-- Top-Right Ghost Car Toggle Button -->
@@ -226,6 +265,39 @@
             </div>
           </div>
 
+          <!-- Circuit Selection (Choix du Circuit) -->
+          <div class="welcome-control-block welcome-circuit-block">
+            <div class="welcome-control-label">CHOIX DU CIRCUIT · DIFFICULTÉ</div>
+            <div class="circuit-selector-row">
+              <button
+                id="btn-welcome-circuit-1"
+                class="circuit-card-btn active"
+                type="button"
+                data-circuit="circuit_1"
+              >
+                <div class="circuit-card-header">
+                  <span class="circuit-card-badge badge-c1">NIVEAU 1</span>
+                  <span class="circuit-card-turns">6 VIRAGES</span>
+                </div>
+                <div class="circuit-card-title">Circuit 1 : Desk Coaster</div>
+                <div class="circuit-card-sub">Tracé classique fluide, grandes boucles aériennes</div>
+              </button>
+              <button
+                id="btn-welcome-circuit-2"
+                class="circuit-card-btn"
+                type="button"
+                data-circuit="circuit_2"
+              >
+                <div class="circuit-card-header">
+                  <span class="circuit-card-badge badge-c2">NIVEAU 2 · EXPERT</span>
+                  <span class="circuit-card-turns">19 VIRAGES</span>
+                </div>
+                <div class="circuit-card-title">Circuit 2 : Grand Prix Pro</div>
+                <div class="circuit-card-sub">Niveau au-dessus · Chicanes S, double épingle & slalom</div>
+              </button>
+            </div>
+          </div>
+
           <!-- Mobile Controls Mode Selector (Optimized for Mobile Landscape & Motion Steering) -->
           <div id="welcome-mobile-mode-block" class="welcome-control-block welcome-mobile-block">
             <div class="welcome-control-label">PILOTAGE MOBILE · SUIVI DU MOUVEMENT</div>
@@ -250,7 +322,7 @@
               </button>
             </div>
             <div class="welcome-mobile-hint">
-              📱 Inclinez l'appareil à <strong>gauche ou droite</strong> pour tourner. Mode <strong>horizontal (paysage)</strong> vivement conseillé.
+              📱 <strong>À droite :</strong> Bouton <strong>AVANCER</strong> pour accélérer la voiture. <strong>À gauche :</strong> Bouton <strong>FREIN</strong> et direction (ou inclinez l'appareil). Mode <strong>horizontal (paysage)</strong> vivement conseillé.
             </div>
           </div>
 
@@ -434,15 +506,32 @@
         </div>
       </footer>
 
-      <!-- Mobile Bottom Touch Controls Row (Visible in Mobile View after clicking Start Time Trial) -->
+      <!-- Mobile Bottom Touch Controls Row (Visible on Touch Devices & Mobile Viewports) -->
       <div
         id="mobile-touch-controls"
-        class="mobile-touch-controls hidden"
+        class="mobile-touch-controls"
         role="region"
-        aria-label="Mobile Driving Controls"
+        aria-label="Commandes de pilotage tactile mobile"
       >
-        <!-- Left Side: Left (A) and Right (D) Steer Icons -->
-        <div class="mobile-ctrl-cluster mobile-steer-cluster" role="group" aria-label="Steering Controls">
+        <!-- Left Side: Brake Button (Frein) + Left / Right Steer -->
+        <div class="mobile-ctrl-cluster mobile-left-cluster" role="group" aria-label="Frein et direction gauche/droite">
+          <button
+            id="btn-touch-brake"
+            class="mobile-ctrl-btn mobile-ctrl-brake"
+            type="button"
+            data-control="backward"
+            aria-label="Freiner / Reculer (S)"
+            title="Frein / Marche arrière"
+          >
+            <span class="mobile-ctrl-inner">
+              <svg class="mobile-ctrl-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M9 9l6 6m0-6l-6 6"></path>
+              </svg>
+              <span class="mobile-ctrl-label">FREIN</span>
+            </span>
+          </button>
+
           <button
             id="btn-touch-left"
             class="mobile-ctrl-btn mobile-ctrl-steer"
@@ -478,8 +567,8 @@
           </button>
         </div>
 
-        <!-- Center Action: Mode Toggle & Calibration Pill -->
-        <div class="mobile-ctrl-cluster mobile-center-cluster" role="group" aria-label="Suivi du mouvement">
+        <!-- Center Actions: Gyro Steering Mode & Dynamic Weather Pill -->
+        <div class="mobile-ctrl-cluster mobile-center-cluster" role="group" aria-label="Options de jeu">
           <button
             id="btn-touch-gyro-toggle"
             class="mobile-ctrl-pill-btn active"
@@ -487,43 +576,63 @@
             title="Basculer entre suivi du mouvement (gyroscope) et touches"
           >
             <span class="mobile-pill-icon">🔄</span>
-            <span id="mobile-gyro-btn-text" class="mobile-pill-text">SUIVI GYRO : ACTIF</span>
+            <span id="mobile-gyro-btn-text" class="mobile-pill-text">GYRO : ACTIF</span>
+          </button>
+
+          <button
+            id="btn-touch-weather-toggle"
+            class="mobile-ctrl-pill-btn mobile-weather-pill"
+            type="button"
+            title="Changer la météo (Clair / Pluie / Brouillard)"
+          >
+            <span id="mobile-weather-pill-icon" class="mobile-pill-icon">☀️</span>
+            <span id="mobile-weather-pill-text" class="mobile-pill-text">CLAIR</span>
+          </button>
+
+          <button
+            id="btn-touch-circuit-toggle"
+            class="mobile-ctrl-pill-btn mobile-circuit-pill"
+            type="button"
+            title="Changer de circuit (C1 / C2 Expert)"
+          >
+            <span class="mobile-pill-icon">🏁</span>
+            <span id="mobile-circuit-btn-text" class="mobile-pill-text">CIRCUIT 1</span>
           </button>
         </div>
 
-        <!-- Right Side: Accelerate (W), Brake (S) and Drift/Boost Buttons -->
-        <div class="mobile-ctrl-cluster mobile-pedal-cluster" role="group" aria-label="Accelerate, Brake and Boost Controls">
+        <!-- Right Side: Large Accelerator Button (Avancer / Gaz) + Quick Reset -->
+        <div class="mobile-ctrl-cluster mobile-right-cluster" role="group" aria-label="Accélérateur et actions">
           <button
-            id="btn-touch-brake"
-            class="mobile-ctrl-btn mobile-ctrl-brake"
+            id="btn-touch-reset"
+            class="mobile-ctrl-btn mobile-ctrl-reset"
             type="button"
-            data-control="backward"
-            aria-label="Freiner / Reculer (S)"
-            title="Frein / Marche arrière"
+            data-control="reset"
+            aria-label="Réinitialiser au départ (R)"
+            title="Remettre la voiture au départ (R)"
           >
             <span class="mobile-ctrl-inner">
-              <svg class="mobile-ctrl-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="7 8 12 13 17 8"></polyline>
-                <line x1="7" y1="17" x2="17" y2="17"></line>
+              <svg class="mobile-ctrl-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
               </svg>
-              <span class="mobile-ctrl-label">FREIN</span>
+              <span class="mobile-ctrl-label">RESET</span>
             </span>
           </button>
 
           <button
             id="btn-touch-accel"
-            class="mobile-ctrl-btn mobile-ctrl-accel"
+            class="mobile-ctrl-btn mobile-ctrl-accel mobile-ctrl-accel-large"
             type="button"
             data-control="forward"
-            aria-label="Accélérer (W)"
-            title="Accélérateur"
+            aria-label="Avancer / Accélérer (W)"
+            title="Accélérateur — Avancer la voiture"
           >
             <span class="mobile-ctrl-inner">
-              <svg class="mobile-ctrl-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg class="mobile-ctrl-svg mobile-accel-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="17 13 12 8 7 13"></polyline>
-                <polyline points="17 18 12 13 7 18" opacity="0.45"></polyline>
+                <polyline points="17 18 12 13 7 18" opacity="0.55"></polyline>
               </svg>
-              <span class="mobile-ctrl-label">GAZ</span>
+              <span class="mobile-ctrl-label mobile-ctrl-accel-label">AVANCER</span>
             </span>
           </button>
         </div>
