@@ -3,14 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#0b0c10" />
-    <title>Fast Racers</title>
-    <meta name="description" content="Miniature desk coaster time-trial racing game in Three.js" />
-    <meta property="og:title" content="Fast Racers" />
-    <meta property="og:description" content="Miniature desk coaster time-trial racing game in Three.js" />
+    <meta name="apple-mobile-web-app-title" content="Mini Races" />
+    <meta name="application-name" content="Mini Races" />
+    <meta name="theme-color" content="#181312" />
+    <title>Mini Races - Circuit 3D Miniature & Dérapages</title>
+    <meta name="description" content="Mini Races : Jeu de course miniature 3D sur bureau avec karts N-scale, virages serrés, dérapages et fumée de pneus." />
+    <meta property="og:title" content="Mini Races" />
+    <meta property="og:description" content="Mini Races : Jeu de course miniature 3D sur bureau avec karts N-scale, virages serrés, dérapages et fumée de pneus." />
+    <meta property="og:image" content="/pwa-512x512.png" />
+
+    <!-- PWA Web App Manifest & Mobile Home Screen Icons (iOS & Android) -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512x512.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -41,8 +53,8 @@
             class="hud-brand-title"
             role="button"
             tabindex="0"
-            title="Click to open Controls &amp; Camera Menu"
-          >Fast Racers</div>
+            title="Cliquez pour ouvrir le Menu des Commandes &amp; Choix du Circuit"
+          >Mini Races</div>
         </div>
 
         <div class="hud-settings-anchor">
@@ -70,6 +82,18 @@
             >
               <span class="hud-circuit-flag">🏁</span>
               <span id="hud-circuit-label" class="hud-circuit-label">C1</span>
+            </button>
+
+            <!-- Top-Right Mobile App Install / Add to Home Screen Button -->
+            <button
+              id="btn-pwa-install"
+              class="hud-mute-btn hud-pwa-btn"
+              type="button"
+              aria-label="Installer l'icône Mini Races sur l'écran d'accueil"
+              title="Ajouter l'icône Mini Races sur votre écran d'accueil mobile (iOS / Android)"
+            >
+              <span class="hud-pwa-icon">📱</span>
+              <span class="hud-pwa-label">APPLI</span>
             </button>
 
             <!-- Top-Right Fullscreen Toggle Button (Mobile Landscape) -->
@@ -214,64 +238,48 @@
         </div>
       </div>
 
-      <!-- Welcome & Controls Dialog (Shown on Launch & When Clicking "Desk Racer") -->
-      <div id="welcome-dialog-overlay" class="welcome-dialog-overlay">
-        <div class="welcome-dialog-card" role="dialog" aria-labelledby="welcome-title">
-          <div class="welcome-eyebrow">DESKTOP CIRCUIT · 3 LAPS</div>
-          <h1 id="welcome-title" class="welcome-title">FAST RACERS</h1>
-
-          <div class="welcome-controls-grid">
-            <!-- WASD Controls -->
-            <div class="welcome-control-block">
-              <div class="welcome-control-label">CONTROLS</div>
-              <div class="control-keys-list" aria-label="WASD Controls">
-                <div class="control-key-row">
-                  <div class="control-kbd-pair">
-                    <kbd class="welcome-key">W</kbd>
-                  </div>
-                  <span>ACCELERATE</span>
-                </div>
-                <div class="control-key-row">
-                  <div class="control-kbd-pair">
-                    <kbd class="welcome-key">A</kbd>
-                    <kbd class="welcome-key">D</kbd>
-                  </div>
-                  <span>STEER</span>
-                </div>
-                <div class="control-key-row">
-                  <div class="control-kbd-pair">
-                    <kbd class="welcome-key">S</kbd>
-                  </div>
-                  <span>BRAKE</span>
-                </div>
-                <div class="control-key-row">
-                  <div class="control-kbd-pair">
-                    <kbd class="welcome-key">G</kbd>
-                  </div>
-                  <span>GHOST BENCHMARK</span>
-                </div>
-              </div>
+      <!-- Page d'Accueil : Simple, Sophistiquée & Minimaliste avec Grand Bouton START -->
+      <div id="welcome-dialog-overlay" class="welcome-dialog-overlay home-screen-overlay">
+        <div class="welcome-dialog-card home-screen-card" role="dialog" aria-labelledby="welcome-title">
+          
+          <!-- En-tête & Identité Mini Races -->
+          <div class="home-brand-row">
+            <div class="home-icon-frame">
+              <img src="/apple-touch-icon.png" alt="Mini Races Logo" class="home-app-icon" />
+              <div class="home-icon-ambient"></div>
             </div>
-
-            <!-- Game Views 1-4 -->
-            <div class="welcome-control-block">
-              <div class="welcome-control-label">GAME VIEWS</div>
-              <div class="cam-keys-list">
-                <div class="cam-key-row cam-pill active" data-cam="1"><kbd class="welcome-key welcome-key-cyan">1</kbd><span>CHASE VIEW</span></div>
-                <div class="cam-key-row cam-pill" data-cam="2"><kbd class="welcome-key welcome-key-cyan">2</kbd><span>COCKPIT</span></div>
-                <div class="cam-key-row cam-pill" data-cam="3"><kbd class="welcome-key welcome-key-cyan">3</kbd><span>FULL DESK VIEW</span></div>
-                <div class="cam-key-row cam-pill" data-cam="4"><kbd class="welcome-key welcome-key-cyan">4</kbd><span>DRONE VIEW</span></div>
-              </div>
+            <div class="home-brand-headings">
+              <div class="home-eyebrow">COURSE 3D SUR BUREAU · 3 TOURS</div>
+              <h1 id="welcome-title" class="home-main-title">MINI RACES</h1>
+              <p class="home-subtitle">Karts miniatures · Dérapages &amp; Fumée de pneus · 60 FPS</p>
             </div>
           </div>
 
-          <!-- Circuit Selection (Choix du Circuit) -->
-          <div class="welcome-control-block welcome-circuit-block">
-            <div class="welcome-control-label">CHOIX DU CIRCUIT · DIFFICULTÉ</div>
-            <div class="circuit-selector-row">
+          <!-- GRAND BOUTON START HÉROÏQUE (Simple, Pratique & Magnétique) -->
+          <div class="home-start-block">
+            <button id="btn-welcome-start" class="home-giant-start-btn" type="button" aria-label="Lancer la course">
+              <div class="home-start-glow-fx"></div>
+              <div class="home-start-content">
+                <span class="home-start-play-icon">▶</span>
+                <span id="welcome-start-text" class="home-start-label">COMMENCER LA COURSE</span>
+                <kbd id="welcome-enter-kbd" class="home-start-key-badge">ENTRÉE ↵</kbd>
+              </div>
+              <span class="welcome-btn-progress-track" aria-hidden="true">
+                <span id="welcome-btn-progress-fill" class="welcome-btn-progress-fill"></span>
+              </span>
+            </button>
+          </div>
+
+          <!-- Choix Rapide du Circuit (2 cartes épurées) -->
+          <div class="home-panel">
+            <div class="home-panel-header">
+              <span class="home-panel-title">CHOIX DU TRACÉ</span>
+              <span class="home-panel-badge">2 NIVEAUX DISPONIBLES</span>
+            </div>
+            <div class="circuit-selector-row home-circuit-selector">
               <button
                 id="btn-welcome-circuit-1"
-                class="circuit-card-btn active"
+                class="circuit-card-btn home-circuit-card active"
                 type="button"
                 data-circuit="circuit_1"
               >
@@ -280,11 +288,11 @@
                   <span class="circuit-card-turns">6 VIRAGES</span>
                 </div>
                 <div class="circuit-card-title">Circuit 1 : Desk Coaster</div>
-                <div class="circuit-card-sub">Tracé classique fluide, grandes boucles aériennes</div>
+                <div class="circuit-card-sub">Tracé fluide, grandes boucles aériennes</div>
               </button>
               <button
                 id="btn-welcome-circuit-2"
-                class="circuit-card-btn"
+                class="circuit-card-btn home-circuit-card"
                 type="button"
                 data-circuit="circuit_2"
               >
@@ -293,59 +301,71 @@
                   <span class="circuit-card-turns">19 VIRAGES</span>
                 </div>
                 <div class="circuit-card-title">Circuit 2 : Grand Prix Pro</div>
-                <div class="circuit-card-sub">Niveau au-dessus · Chicanes S, double épingle & slalom</div>
+                <div class="circuit-card-sub">Chicanes S, double épingle &amp; slalom</div>
               </button>
             </div>
           </div>
 
-          <!-- Mobile Controls Mode Selector (Optimized for Mobile Landscape & Motion Steering) -->
-          <div id="welcome-mobile-mode-block" class="welcome-control-block welcome-mobile-block">
-            <div class="welcome-control-label">PILOTAGE MOBILE · SUIVI DU MOUVEMENT</div>
-            <div class="mobile-mode-selector-row">
-              <button
-                id="btn-mode-gyro"
-                class="mobile-mode-pill active"
-                type="button"
-                title="Piloter en inclinant le portable vers la gauche ou la droite"
-              >
-                <span class="mode-pill-icon">🔄</span>
-                <span>SUIVI MOUVEMENT (GYRO)</span>
-              </button>
-              <button
-                id="btn-mode-touch"
-                class="mobile-mode-pill"
-                type="button"
-                title="Piloter avec les touches tactiles gauche et droite"
-              >
-                <span class="mode-pill-icon">👆</span>
-                <span>TOUCHES ÉCRAN</span>
-              </button>
+          <!-- Pilotage Facile & Pratique (Guide minimaliste 3 actions) -->
+          <div class="home-panel">
+            <div class="home-panel-header">
+              <span class="home-panel-title">PILOTAGE FACILE</span>
+              <div id="welcome-mobile-mode-block" class="home-mode-toggle-wrap">
+                <div class="mobile-mode-selector-row home-mode-pills">
+                  <button
+                    id="btn-mode-gyro"
+                    class="mobile-mode-pill active"
+                    type="button"
+                    title="Piloter en inclinant le smartphone"
+                  >
+                    <span>🔄 GYRO</span>
+                  </button>
+                  <button
+                    id="btn-mode-touch"
+                    class="mobile-mode-pill"
+                    type="button"
+                    title="Piloter avec les boutons tactiles ou clavier"
+                  >
+                    <span>👆 TOUCHES / ZQSD</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="welcome-mobile-hint">
-              📱 <strong>À droite :</strong> Bouton <strong>AVANCER</strong> pour accélérer la voiture. <strong>À gauche :</strong> Bouton <strong>FREIN</strong> et direction (ou inclinez l'appareil). Mode <strong>horizontal (paysage)</strong> vivement conseillé.
+
+            <!-- Les 3 actions simples pour jouer immédiatement -->
+            <div class="home-tips-grid">
+              <div class="home-tip-card">
+                <span class="home-tip-key">AVANCER</span>
+                <span class="home-tip-desc">Bouton droit ou touche <strong>W / ↑</strong></span>
+              </div>
+              <div class="home-tip-card">
+                <span class="home-tip-key tip-brake">FREINER</span>
+                <span class="home-tip-desc">Bouton gauche ou touche <strong>S / ↓</strong></span>
+              </div>
+              <div class="home-tip-card">
+                <span class="home-tip-key tip-drift">DÉRAPER</span>
+                <span class="home-tip-desc">Inclinez ou <strong>A / D</strong> en courbe</span>
+              </div>
             </div>
           </div>
 
-          <!-- Session Fastest Lap Banner in Welcome Dialog -->
-          <div class="welcome-session-best-box">
-            <div class="welcome-session-best-info">
-              <span class="welcome-best-tag">🏆 SESSION BEST LAP</span>
-              <span id="welcome-session-best-val" class="welcome-session-best-val">--:--.--</span>
+          <!-- Bandeau Inférieur Minimaliste : Record, Classement & Mobile -->
+          <div class="home-bottom-strip">
+            <div class="home-best-lap-row">
+              <span class="home-best-lap-label">🏆 MEILLEUR TEMPS :</span>
+              <span id="welcome-session-best-val" class="home-best-lap-val">--:--.--</span>
             </div>
-            <button id="welcome-view-leaderboard-btn" class="welcome-view-lb-btn" type="button">
-              TOP 5 LEADERBOARD (L)
-            </button>
+
+            <div class="home-strip-actions">
+              <button id="welcome-view-leaderboard-btn" class="home-action-btn" type="button" title="Afficher le classement complet">
+                <span>🏆 CLASSEMENT (L)</span>
+              </button>
+              <button id="btn-welcome-pwa-install" class="home-action-btn home-pwa-action" type="button" title="Ajouter l'icône sur votre écran d'accueil">
+                <span>📱 INSTALLER SUR MOBILE</span>
+              </button>
+            </div>
           </div>
 
-          <div class="welcome-footer-row">
-            <button id="btn-welcome-start" class="welcome-start-btn" type="button">
-              <span id="welcome-start-text" class="welcome-start-text">START TIME TRIAL</span>
-              <kbd id="welcome-enter-kbd" class="welcome-enter-kbd">ENTER ↵</kbd>
-              <span class="welcome-btn-progress-track" aria-hidden="true">
-                <span id="welcome-btn-progress-fill" class="welcome-btn-progress-fill"></span>
-              </span>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -426,12 +446,43 @@
         </div>
       </div>
 
+      <!-- iOS / iPad Safari Add to Home Screen Instructions Modal -->
+      <div id="ios-install-modal" class="welcome-dialog-overlay hidden" role="dialog" aria-labelledby="ios-modal-title">
+        <div class="welcome-dialog-card ios-install-card">
+          <div class="ios-install-header">
+            <img src="/apple-touch-icon.png" alt="Mini Races" class="ios-install-app-icon" />
+            <div>
+              <div class="welcome-eyebrow">APPLICATION iOS · SAFARI</div>
+              <h2 id="ios-modal-title" class="welcome-title ios-modal-title">MINI RACES</h2>
+            </div>
+          </div>
+          <p class="ios-install-subtitle">Ajoutez l'icône officielle sur l'écran d'accueil de votre iPhone ou iPad :</p>
+          <div class="ios-steps-list">
+            <div class="ios-step-row">
+              <div class="ios-step-num">1</div>
+              <div class="ios-step-desc">Dans Safari, appuyez sur le bouton <strong>Partager</strong> <span class="ios-share-badge">⎋</span> (barre du bas sur iPhone ou en haut sur iPad).</div>
+            </div>
+            <div class="ios-step-row">
+              <div class="ios-step-num">2</div>
+              <div class="ios-step-desc">Faites défiler le menu et sélectionnez <strong>« Sur l'écran d'accueil »</strong> <span class="ios-plus-badge">➕</span>.</div>
+            </div>
+            <div class="ios-step-row">
+              <div class="ios-step-num">3</div>
+              <div class="ios-step-desc">Touchez <strong>« Ajouter »</strong> en haut à droite. L'icône Mini Races est installée et se lance en plein écran !</div>
+            </div>
+          </div>
+          <button id="btn-ios-modal-close" class="welcome-start-btn" type="button">
+            <span>J'AI COMPRIS</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Center Formula 1 Countdown Number (Triggered by pressing Enter at Start) -->
       <div id="hud-f1-countdown" class="hud-f1-countdown hidden">5</div>
 
       <div id="hud-finish-overlay" class="welcome-dialog-overlay hud-finish-overlay hidden" role="dialog" aria-labelledby="hud-finish-title">
         <div class="welcome-dialog-card finish-dialog-card">
-          <div class="welcome-eyebrow">DESKTOP CIRCUIT · 3 LAPS COMPLETE</div>
+          <div class="welcome-eyebrow">CIRCUIT 3D MINIATURE · 3 TOURS TERMINÉS</div>
           <h2 id="hud-finish-title" class="hud-finish-title">FINISH</h2>
           <div id="hud-finish-time" class="hud-finish-time">00:00.00</div>
           <div id="hud-finish-sub" class="hud-finish-sub">BEST LAP 00:00.00</div>

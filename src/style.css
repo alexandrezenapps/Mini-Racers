@@ -2722,4 +2722,581 @@ body.touch-controls-forced .mobile-touch-controls:not(.hidden) {
   color: #ffaa33;
 }
 
+/* =========================================================================
+   PWA MOBILE INSTALL & MINI RACES HOME SCREEN ICON STYLES
+   ========================================================================= */
+
+.hud-pwa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  min-width: 68px;
+  height: 34px;
+  background: linear-gradient(135deg, rgba(255, 43, 30, 0.28) 0%, rgba(255, 170, 34, 0.22) 100%);
+  border: 1px solid rgba(255, 120, 60, 0.55);
+  box-shadow: 0 2px 10px rgba(255, 43, 30, 0.25);
+  color: #fff;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hud-pwa-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 43, 30, 0.45) 0%, rgba(255, 170, 34, 0.35) 100%);
+  border-color: rgba(255, 160, 80, 0.85);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(255, 43, 30, 0.4);
+}
+
+.hud-pwa-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.hud-pwa-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ffd8a8;
+}
+
+/* Welcome Dialog PWA Banner Card */
+.welcome-pwa-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 6px 0 16px 0;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(26, 32, 48, 0.92) 0%, rgba(18, 22, 34, 0.95) 100%);
+  border: 1px solid rgba(255, 140, 60, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.welcome-pwa-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.welcome-pwa-text-col {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.welcome-pwa-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #ff9d42;
+  margin-bottom: 2px;
+}
+
+.welcome-pwa-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(220, 230, 245, 0.82);
+}
+
+.welcome-pwa-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ff3b2f 0%, #ff8822 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(255, 59, 47, 0.4);
+  transition: all 0.15s ease;
+}
+
+.welcome-pwa-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 16px rgba(255, 59, 47, 0.6);
+}
+
+.welcome-pwa-btn:active {
+  transform: scale(0.97);
+}
+
+/* iOS Safari Install Guide Modal */
+.ios-install-card {
+  max-width: 440px;
+  text-align: left;
+  border: 1px solid rgba(255, 140, 60, 0.45);
+}
+
+.ios-install-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.ios-install-app-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 13px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.ios-modal-title {
+  font-size: 22px;
+  margin: 0;
+  color: #ffffff;
+}
+
+.ios-install-subtitle {
+  font-size: 12px;
+  color: rgba(220, 230, 245, 0.85);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.ios-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.ios-step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.ios-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff3b2f, #ff8822);
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ios-step-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(240, 245, 255, 0.92);
+}
+
+.ios-share-badge,
+.ios-plus-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: bold;
+  color: #00e5ff;
+}
+
+/* =========================================================================
+   PAGE D'ACCUEIL SIMPLE, SOPHISTIQUÉE ET MINIMALISTE (MINI RACES)
+   ========================================================================= */
+
+.home-screen-overlay {
+  background: radial-gradient(
+    ellipse 85% 75% at 50% 50%,
+    rgba(14, 18, 28, 0.76) 0%,
+    rgba(6, 8, 14, 0.90) 100%
+  ) !important;
+  backdrop-filter: blur(8px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+}
+
+.home-screen-card {
+  width: min(640px, 94vw) !important;
+  max-width: 640px;
+  max-height: 94vh;
+  overflow-y: auto;
+  padding: 24px 28px 20px !important;
+  background: linear-gradient(
+    165deg,
+    rgba(18, 24, 38, 0.94) 0%,
+    rgba(10, 14, 24, 0.98) 100%
+  ) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 18px !important;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.85),
+    0 0 32px rgba(255, 75, 40, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+  text-align: left !important;
+}
+
+.home-screen-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #ff3b2f 0%, #ff9d42 50%, #00e5ff 100%);
+  border-radius: 18px 18px 0 0;
+}
+
+/* En-tête de la Page d'Accueil */
+.home-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.home-icon-frame {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  flex-shrink: 0;
+}
+
+.home-app-icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.25);
+  display: block;
+}
+
+.home-icon-ambient {
+  position: absolute;
+  inset: -4px;
+  border-radius: 20px;
+  background: radial-gradient(circle, rgba(255, 60, 40, 0.45) 0%, transparent 70%);
+  z-index: -1;
+  filter: blur(6px);
+}
+
+.home-brand-headings {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-eyebrow {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #00e5ff;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+  margin-bottom: 2px;
+}
+
+.home-main-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(28px, 6vw, 36px);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+  margin: 0 0 4px 0;
+  background: linear-gradient(95deg, #ffffff 0%, #fff0d4 60%, #ffaa44 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8));
+}
+
+.home-subtitle {
+  font-size: 12.5px;
+  color: rgba(220, 230, 245, 0.82);
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* GRAND BOUTON START */
+.home-start-block {
+  margin-bottom: 20px;
+}
+
+.home-giant-start-btn {
+  position: relative;
+  width: 100%;
+  min-height: 58px;
+  padding: 14px 24px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 200, 120, 0.55);
+  background: linear-gradient(135deg, #e62214 0%, #ff4d24 45%, #ff9922 100%);
+  color: #ffffff;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow:
+    0 10px 28px rgba(230, 34, 20, 0.45),
+    0 0 20px rgba(255, 153, 34, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-giant-start-btn:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 14px 36px rgba(230, 34, 20, 0.65),
+    0 0 28px rgba(255, 153, 34, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.home-giant-start-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.home-start-glow-fx {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 60%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.home-start-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.home-start-play-icon {
+  font-size: 18px;
+  line-height: 1;
+  color: #ffffff;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+.home-start-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(16px, 3.8vw, 20px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.home-start-key-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffe6c8;
+  letter-spacing: 0.04em;
+}
+
+/* Sections / Panels */
+.home-panel {
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px 14px;
+}
+
+.home-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.home-panel-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #00e5ff;
+}
+
+.home-panel-badge,
+.home-section-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.home-circuit-selector {
+  margin-bottom: 0 !important;
+}
+
+.home-circuit-card {
+  padding: 10px 14px !important;
+}
+
+.home-mode-toggle-wrap {
+  margin: 0;
+}
+
+.home-mode-pills {
+  margin-bottom: 0 !important;
+  gap: 6px;
+}
+
+.home-mode-pills .mobile-mode-pill {
+  padding: 4px 10px;
+  font-size: 10px;
+}
+
+/* Mini-Cartes Guide Rapide */
+.home-tips-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.home-tip-card {
+  background: rgba(10, 16, 28, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home-tip-key {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #00e5ff;
+}
+
+.home-tip-key.tip-brake {
+  color: #ff5252;
+}
+
+.home-tip-key.tip-drift {
+  color: #ffaa33;
+}
+
+.home-tip-desc {
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: rgba(220, 230, 245, 0.85);
+}
+
+.home-tip-desc strong {
+  color: #ffffff;
+}
+
+/* Bandeau Inférieur */
+.home-bottom-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.home-best-lap-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+}
+
+.home-best-lap-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffd27d;
+  letter-spacing: 0.05em;
+}
+
+.home-best-lap-val {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.home-strip-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-action-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 7px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.home-action-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+}
+
+.home-pwa-action {
+  background: rgba(255, 75, 40, 0.15);
+  border-color: rgba(255, 120, 60, 0.4);
+  color: #ffaa66;
+}
+
+.home-pwa-action:hover {
+  background: rgba(255, 75, 40, 0.3);
+  border-color: rgba(255, 140, 80, 0.7);
+  color: #ffffff;
+}
+
+@media (max-width: 600px) {
+  .home-screen-card {
+    padding: 16px 16px 14px !important;
+  }
+  .home-tips-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .home-bottom-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .home-strip-actions {
+    justify-content: stretch;
+  }
+  .home-strip-actions .home-action-btn {
+    flex: 1;
+    text-align: center;
+  }
+}
+
 

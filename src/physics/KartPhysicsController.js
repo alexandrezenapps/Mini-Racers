@@ -614,9 +614,9 @@ export async function createKartPhysicsController(splineData, manifest, roadGeo)
       const yawAlpha = 1.0 - Math.exp(-10.5 * clampedDt);
       state.headingYaw = THREE.MathUtils.lerp(state.headingYaw, targetAutoYaw, yawAlpha);
 
-      // Auto-drift with sparks inside the Cat 360° Helix (Sector 2), Lamp Corkscrew (Sector 4), and Mouse C-turn (Sector 5)
+      // Auto-drift with sparks & tire smoke in tight turns (Cat Helix, Corkscrew, Chicanes, Hairpins)
       const driftAlpha = 1.0 - Math.exp(-8.0 * clampedDt);
-      if (Math.abs(frame.signedCurvature) > 0.52 && state.speed > 0.10) {
+      if (Math.abs(frame.signedCurvature) > 0.36 && state.speed > 0.08) {
         state.isDrifting = true;
         state.driftDir = Math.sign(frame.signedCurvature) || 1;
         state.driftAngle = THREE.MathUtils.lerp(
@@ -865,11 +865,13 @@ export async function createKartPhysicsController(splineData, manifest, roadGeo)
     );
 
     if (!isAiCruise) {
-      // Automatic Cornering Slip & Sparks when steering hard into a curve at speed
+      // Automatic Cornering Slip, Smoke & Sparks when carving or sliding through curves at speed
+      const isTightCurve = Math.abs(frame.signedCurvature) > 0.25;
+      const isHardTurn = Math.abs(state.steerInput) > 0.28 && isTightCurve;
+      const isLateralSlide = Math.abs(state.lateralVel) > 0.011;
       if (
-        Math.abs(state.steerInput) > 0.35 &&
-        Math.abs(frame.signedCurvature) > 0.30 &&
-        state.speed > 0.11
+        (isHardTurn || isLateralSlide) &&
+        state.speed > 0.08
       ) {
         state.isDrifting = true;
         state.driftDir = Math.sign(turnRight) || Math.sign(state.steerInput) || 1;

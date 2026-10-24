@@ -1470,7 +1470,21 @@ export function buildCoasterTrack(splineData) {
   });
 
   const f1StartLightPods = [];
-  const gSample = samples[646] || samples[0];
+  let gantrySampleIdx = 646;
+  let minGantryDist = Infinity;
+  for (let sIdx = 0; sIdx < N; sIdx++) {
+    const s = samples[sIdx];
+    if (s.sector === 6 || !s.sector) {
+      const dx = s.position[0] - 0.0183;
+      const dz = s.position[2] - 0.255;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < minGantryDist) {
+        minGantryDist = d2;
+        gantrySampleIdx = sIdx;
+      }
+    }
+  }
+  const gSample = samples[gantrySampleIdx] || samples[646] || samples[0];
   const gCenter = new THREE.Vector3(...gSample.position);
   const gRightHoriz = new THREE.Vector3(gSample.right[0], 0, gSample.right[2]).normalize();
   const gUpVec = new THREE.Vector3(0, 1, 0);

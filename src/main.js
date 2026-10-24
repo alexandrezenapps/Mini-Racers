@@ -21,6 +21,7 @@ import { leaderboardManager, formatLapTime } from './leaderboard/LeaderboardMana
 import { ghostVehicleManager } from './ghost/GhostVehicleManager.js';
 import { DynamicWeatherManager } from './scene/DynamicWeatherManager.js';
 import { CIRCUITS, getTrackSplineForCircuit } from './scene/TrackDefinitions.js';
+import { TireSmokeParticleSystem } from './scene/TireSmokeParticleSystem.js';
 
 async function initApp() {
   const container = document.getElementById('canvas-container');
@@ -67,7 +68,17 @@ async function initApp() {
     }
   }
 
-  const pixelRatio = isScreenshotUrl ? 1.0 : Math.min(window.devicePixelRatio, 2.0);
+  const isMobileClient =
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+    window.innerWidth <= 1024;
+
+  const pixelRatio = isScreenshotUrl
+    ? 1.0
+    : isMobileClient
+      ? Math.min(window.devicePixelRatio, 1.35)
+      : Math.min(window.devicePixelRatio, 2.0);
   renderer.setPixelRatio(pixelRatio);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -101,10 +112,10 @@ async function initApp() {
     this.materialBokeh.uniforms['aspect'].value = width / height;
   };
 
-  // Single-pass hardware-depth BokehPass with a 25-tap Golden-Angle Vogel Spiral disc kernel:
-  // - Reads hardware DepthTexture directly (DEPTH_PACKING = 0 -> zero MeshDepthMaterial geometry pass)
-  // - Single render target pass (no extra downsample pass or dual-sampler branching)
-  // - Uniform disc coverage at 40% fewer texture fetches than the stock 41-tap concentric ring shader
+  // Hardware-depth BokehPass with mobile-adaptive Vogel Spiral disc kernel:
+  // - 20 samples on mobile for 60 FPS fluidity, 44 samples on desktop
+  // - Reads hardware DepthTexture directly with zero extra geometry passes
+  const bokehSamples = isMobileClient ? 20 : 44;
   bokehPass.materialBokeh.defines.DEPTH_PACKING = 0;
   bokehPass.materialBokeh.fragmentShader = /* glsl */ `
     #include <common>
@@ -135,12 +146,9 @@ async function initApp() {
       vec2 aspectcorrect = vec2( 1.0, aspect );
       float viewZ = getViewZ( getDepth( vUv ) );
       float rawFactor = focus + viewZ;
-      // Keep a generous crystal-sharp focal band (>= ±11mm in macro close-ups) so the entire 13mm
-      // kart body, wheels, and helmet stay 100% tack-sharp while background props melt into bokeh
+      // Keep a generous focal band so the kart stays tack-sharp while background props melt into bokeh
       float deadzone = max( 0.011, focus * 0.095 );
       float absDiff = max( 0.0, abs( rawFactor ) - deadzone );
-      // Relative optical circle-of-confusion scaling so close-up macro shots (focus ~ 0.06m) and
-      // wide shots (focus ~ 0.50m) both transition smoothly without sudden foreground clipping
       float normScale = 1.0 / max( 0.22, focus * 1.15 );
       float signedFactor = sign( rawFactor ) * absDiff * ( 0.42 + 0.16 * normScale );
       vec2 dofblur = vec2( clamp( signedFactor * aperture, -maxblur, maxblur ) );
@@ -153,8 +161,7 @@ async function initApp() {
         return;
       }
 
-      // 48-point Golden-Angle Vogel spiral with depth-aware foreground occlusion protection
-      // so sharp foreground objects (like the car) never bleed blurry halos onto the background behind them
+      // Golden-Angle Vogel spiral with depth-aware foreground occlusion protection
       float ign = fract( 52.9829189 * fract( dot( gl_FragCoord.xy, vec2( 0.06711056, 0.00583715 ) ) ) );
       float thetaJitter = ( ign - 0.5 ) * 0.45;
       float cj = cos( thetaJitter );
@@ -163,9 +170,9 @@ async function initApp() {
 
       vec4 acc = col;
       float totalWeight = 1.0;
-      for ( int i = 1; i <= 48; i++ ) {
+      for ( int i = 1; i <= ${bokehSamples}; i++ ) {
         float fi = float( i );
-        float r = sqrt( fi / 48.5 );
+        float r = sqrt( fi / ${bokehSamples}.5 );
         float theta = fi * 2.39996323;
         vec2 offset = rotMat * ( vec2( cos( theta ), sin( theta ) ) * r );
         vec2 sampleUv = vUv + offset * radius;
@@ -286,6 +293,9 @@ async function initApp() {
   const microKart = buildMicroKart();
   microKart.kartRoot.scale.setScalar(0.38);
   scene.add(microKart.kartRoot);
+
+  // Initialize Three.js tire smoke particle system for drifts & tight corners
+  const tireSmokeSystem = new TireSmokeParticleSystem(scene);
 
   // Initialize translucent non-colliding Ghost Car
   ghostVehicleManager.init(scene);
@@ -518,6 +528,9 @@ async function initApp() {
       const prevSparkVis = microKart.sparkPoints ? microKart.sparkPoints.visible : true;
       if (microKart.sparkPoints) {
         microKart.sparkPoints.visible = true;
+      }
+      if (tireSmokeSystem && tireSmokeSystem.points) {
+        tireSmokeSystem.points.visible = true;
       }
 
       const tempShownObjects = [];
@@ -959,10 +972,19 @@ async function initApp() {
       hudBrandLogo.classList.toggle('hidden', userHidLogo || mode === 8);
     }
 
+    function getOptimalFov(targetMode) {
+      const isPortrait = window.innerHeight > window.innerWidth;
+      const is1P = targetMode === 1 || targetMode === 2;
+      if (is1P) {
+        return isPortrait ? 58.0 : 42.5;
+      }
+      return isPortrait ? 52.0 : 46.0;
+    }
+
     const targetNear = mode === 3 || mode === 8 ? 0.0004 :
         mode === 1 || mode === 2                ? 0.0018 :
                                                   0.025;
-    const targetFov = mode === 1 || mode === 2 ? 41.5 : 46;
+    const targetFov = getOptimalFov(mode);
     if (
       Math.abs(camera.near - targetNear) > 1e-6 ||
       Math.abs(camera.fov - targetFov) > 1e-3
@@ -1250,12 +1272,17 @@ async function initApp() {
     }
 
     if (activeCameraMode === 1) {
-      // 1:150 N-Scale Low Chase Cam (0.38x kart scale, slightly less zoomed in at 15.4mm behind, 7.4mm above,
-      // looking 24mm ahead and 3.0mm up with 41.5° FOV)
+      // 1:150 N-Scale Low Chase Cam (Adaptive for desktop & mobile horizontal landscape)
+      const isLandscapeMobile = isMobileClient && window.innerWidth > window.innerHeight;
+      const camBackDist = isLandscapeMobile ? -0.0172 : -0.0154;
+      const camHeight = (isLandscapeMobile ? 0.0084 : 0.0074) + st.hopHeight * 0.38;
+      const lookForward = isLandscapeMobile ? 0.028 : 0.024;
+      const lookHeight = (isLandscapeMobile ? 0.0036 : 0.0030) + st.hopHeight * 0.22;
+
       _camDesiredPos
         .copy(st.position)
-        .addScaledVector(camForward, -0.0154)
-        .addScaledVector(st.normal, 0.0074 + st.hopHeight * 0.38);
+        .addScaledVector(camForward, camBackDist)
+        .addScaledVector(st.normal, camHeight);
       if (shakeRight !== 0.0 || shakeUp !== 0.0) {
         _camDesiredPos
           .addScaledVector(st.right, shakeRight)
@@ -1264,8 +1291,8 @@ async function initApp() {
 
       _camDesiredLook
         .copy(st.position)
-        .addScaledVector(camForward, 0.024)
-        .addScaledVector(st.normal, 0.0030 + st.hopHeight * 0.22);
+        .addScaledVector(camForward, lookForward)
+        .addScaledVector(st.normal, lookHeight);
 
       const smoothUp = isScreenshotMode ? 1.0 : 1.0 - Math.exp(-dt * 16.0);
       _camBlendedUp
@@ -1281,8 +1308,11 @@ async function initApp() {
       camera.position.copy(_camDesiredPos);
       camera.lookAt(_camDesiredLook);
     } else if (activeCameraMode === 2) {
-      // 1:150 N-Scale Pure Road Cockpit POV Cam (41.5° FOV, positioned at +2.2mm forward in front of the helmet visor
-      // and 3.4mm above track surface, looking 32mm ahead and 2.6mm up — kart mesh hidden so only the road is visible!)
+      // 1:150 N-Scale Pure Road Cockpit POV Cam
+      const isLandscapeMobile = isMobileClient && window.innerWidth > window.innerHeight;
+      const camLookForward = isLandscapeMobile ? 0.038 : 0.032;
+      const camLookHeight = isLandscapeMobile ? 0.0032 : 0.0026;
+
       _camDesiredPos
         .copy(st.position)
         .addScaledVector(camForward, 0.0022)
@@ -1294,8 +1324,8 @@ async function initApp() {
       }
       _camDesiredLook
         .copy(st.position)
-        .addScaledVector(camForward, 0.032)
-        .addScaledVector(st.normal, 0.0026);
+        .addScaledVector(camForward, camLookForward)
+        .addScaledVector(st.normal, camLookHeight);
 
       const smoothVisor = isScreenshotMode ? 1.0 : 1.0 - Math.exp(-dt * 24.0);
       camCurrentUp.lerp(st.normal, smoothVisor).normalize();
@@ -2405,6 +2435,9 @@ async function initApp() {
     if (elF1Countdown) {
       elF1Countdown.classList.add('hidden');
     }
+    if (tireSmokeSystem) {
+      tireSmokeSystem.reset();
+    }
   }
 
   function startF1StartCountdown() {
@@ -2414,6 +2447,9 @@ async function initApp() {
     const btnAutoText = document.getElementById('autopilot-btn-text');
     if (btnAutoText) btnAutoText.textContent = 'Manual WASD Racing';
     physics.resetToStart();
+    if (tireSmokeSystem) {
+      tireSmokeSystem.reset();
+    }
     physics.state.countdownLocked = true;
     physics.state.raceClockActive = false;
     ghostVehicleManager.startLapRecording();
@@ -2504,8 +2540,8 @@ async function initApp() {
     if (isCircuitReady) {
       btnWelcomeStart.classList.remove('is-warming-up', 'is-queued');
       if (elWelcomeProgressFill) elWelcomeProgressFill.style.width = '100%';
-      if (elWelcomeStartText) elWelcomeStartText.textContent = 'START TIME TRIAL';
-      if (elWelcomeEnterKbd) elWelcomeEnterKbd.textContent = 'ENTER ↵';
+      if (elWelcomeStartText) elWelcomeStartText.textContent = 'COMMENCER LA COURSE';
+      if (elWelcomeEnterKbd) elWelcomeEnterKbd.textContent = 'ENTRÉE ↵';
       focusWelcomeStartButton();
       return;
     }
@@ -2525,8 +2561,8 @@ async function initApp() {
     }
     if (elWelcomeStartText) {
       elWelcomeStartText.textContent = pendingRaceStartAfterWarmup
-        ? 'STARTING TIME TRIAL...'
-        : 'PREPARING CIRCUIT...';
+        ? 'DÉMARRAGE DE LA COURSE...'
+        : 'PRÉPARATION DU CIRCUIT...';
     }
     if (elWelcomeEnterKbd) {
       elWelcomeEnterKbd.textContent = `${pct}%`;
@@ -2691,8 +2727,25 @@ async function initApp() {
       const touches = e.touches || [];
       for (let i = 0; i < touches.length; i++) {
         const t = touches[i];
-        const hitEl = document.elementFromPoint(t.clientX, t.clientY);
-        const btn = hitEl && hitEl.closest ? hitEl.closest('.mobile-ctrl-btn') : null;
+        let hitEl = document.elementFromPoint(t.clientX, t.clientY);
+        let btn = hitEl && hitEl.closest ? hitEl.closest('.mobile-ctrl-btn') : null;
+
+        // Generous 18px thumb margin tolerance so fast thumb steering never drops throttle or brake
+        if (!btn) {
+          for (const candidate of mobileControlButtons) {
+            const rect = candidate.getBoundingClientRect();
+            if (
+              t.clientX >= rect.left - 18 &&
+              t.clientX <= rect.right + 18 &&
+              t.clientY >= rect.top - 18 &&
+              t.clientY <= rect.bottom + 18
+            ) {
+              btn = candidate;
+              break;
+            }
+          }
+        }
+
         if (btn && btn.dataset.control) {
           activeTouchDirs.add(btn.dataset.control);
         }
@@ -2940,6 +2993,73 @@ async function initApp() {
   setGyroActive(true, false);
 
   // -------------------------------------------------------------------------
+  // FULLSCREEN & HORIZONTAL MOBILE ORIENTATION TOGGLE (HOTKEY F & BUTTON)
+  // -------------------------------------------------------------------------
+  const elBtnFullscreenToggle = document.getElementById('btn-fullscreen-toggle');
+
+  function isFullscreenActive() {
+    return Boolean(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+  }
+
+  async function toggleFullscreen() {
+    const docEl = document.documentElement;
+    try {
+      if (!isFullscreenActive()) {
+        if (docEl.requestFullscreen) {
+          await docEl.requestFullscreen();
+        } else if (docEl.webkitRequestFullscreen) {
+          await docEl.webkitRequestFullscreen();
+        } else if (docEl.msRequestFullscreen) {
+          await docEl.msRequestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+        showRecordToast('PLEIN ÉCRAN PAYSAGE 🖥️', 'Mode horizontal immersif activé');
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          await document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          await document.msExitFullscreen();
+        }
+        if (screen.orientation && screen.orientation.unlock) {
+          try { screen.orientation.unlock(); } catch (_e) {}
+        }
+      }
+    } catch (err) {
+      console.warn('Fullscreen toggle error:', err);
+    }
+  }
+
+  function updateFullscreenBtnUI() {
+    const isFs = isFullscreenActive();
+    if (elBtnFullscreenToggle) {
+      elBtnFullscreenToggle.classList.toggle('active', isFs);
+      elBtnFullscreenToggle.setAttribute('aria-pressed', isFs ? 'true' : 'false');
+      elBtnFullscreenToggle.title = isFs
+        ? 'Quitter le plein écran (F)'
+        : 'Plein écran horizontal / paysage (F)';
+    }
+  }
+
+  if (elBtnFullscreenToggle) {
+    elBtnFullscreenToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFullscreen();
+    });
+  }
+
+  document.addEventListener('fullscreenchange', updateFullscreenBtnUI);
+  document.addEventListener('webkitfullscreenchange', updateFullscreenBtnUI);
+
+  // -------------------------------------------------------------------------
   // DYNAMIC WEATHER SYSTEM BINDINGS & NOTIFICATIONS
   // -------------------------------------------------------------------------
   const elBtnWeatherToggle = document.getElementById('btn-weather-toggle');
@@ -3079,6 +3199,9 @@ async function initApp() {
     ghostVehicleManager.setPhysics(physics);
     ghostVehicleManager.clearGhost();
     physics.resetToStart();
+    if (tireSmokeSystem) {
+      tireSmokeSystem.reset();
+    }
 
     // 4. Update camera position to new track start
     const st = physics.state;
@@ -3214,15 +3337,133 @@ async function initApp() {
     });
   }
 
+  // -------------------------------------------------------------------------
+  // PWA MOBILE INSTALL & HOME SCREEN ICON COMPATIBILITY (iOS & ANDROID)
+  // -------------------------------------------------------------------------
+  let deferredInstallPrompt = null;
+  const elBtnPwaInstall = document.getElementById('btn-pwa-install');
+  const elWelcomePwaCard = document.getElementById('welcome-pwa-card');
+  const elBtnWelcomePwaInstall = document.getElementById('btn-welcome-pwa-install');
+  const elIosInstallModal = document.getElementById('ios-install-modal');
+  const elBtnIosModalClose = document.getElementById('btn-ios-modal-close');
+
+  const isStandaloneApp = Boolean(
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    window.navigator.standalone === true
+  );
+
+  const isIosDevice = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+
+  // Register Service Worker for PWA installability and offline caching
+  if ('serviceWorker' in navigator && !isScreenshotMode) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.warn('SW registration:', err);
+      });
+    });
+  }
+
+  function showIosInstallModal() {
+    if (elIosInstallModal) {
+      elIosInstallModal.classList.remove('hidden');
+    }
+  }
+
+  function hideIosInstallModal() {
+    if (elIosInstallModal && !elIosInstallModal.classList.contains('hidden')) {
+      elIosInstallModal.classList.add('hidden');
+    }
+  }
+
+  if (elBtnIosModalClose) {
+    elBtnIosModalClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideIosInstallModal();
+    });
+  }
+
+  async function triggerAppInstall() {
+    if (deferredInstallPrompt) {
+      try {
+        await deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === 'accepted') {
+          showRecordToast('MINI RACES INSTALLÉ ! 📱', 'Icône ajoutée à votre écran d\'accueil');
+          if (elBtnPwaInstall) elBtnPwaInstall.classList.add('hidden');
+          if (elWelcomePwaCard) elWelcomePwaCard.classList.add('hidden');
+          deferredInstallPrompt = null;
+        }
+      } catch (err) {
+        console.warn('Install prompt error:', err);
+      }
+    } else if (isIosDevice || !window.beforeinstallprompt) {
+      showIosInstallModal();
+    } else {
+      showRecordToast('AJOUTER À L\'ÉCRAN 📱', 'Utilisez le menu de votre navigateur pour installer');
+    }
+  }
+
+  if (elBtnPwaInstall) {
+    elBtnPwaInstall.addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerAppInstall();
+    });
+  }
+
+  if (elBtnWelcomePwaInstall) {
+    elBtnWelcomePwaInstall.addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerAppInstall();
+    });
+  }
+
+  // Handle Chrome / Android beforeinstallprompt
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (!isStandaloneApp) {
+      if (elBtnPwaInstall) elBtnPwaInstall.classList.remove('hidden');
+      if (elWelcomePwaCard) elWelcomePwaCard.classList.remove('hidden');
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (elBtnPwaInstall) elBtnPwaInstall.classList.add('hidden');
+    if (elWelcomePwaCard) elWelcomePwaCard.classList.add('hidden');
+    showRecordToast('MINI RACES INSTALLÉ ! 🏎️', 'Icône disponible sur votre écran d\'accueil');
+  });
+
+  // If on iOS or mobile browser and not standalone, show the install buttons
+  if (!isStandaloneApp) {
+    if (elBtnPwaInstall) elBtnPwaInstall.classList.remove('hidden');
+    if (elWelcomePwaCard) elWelcomePwaCard.classList.remove('hidden');
+  }
+
   camButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       hideWelcomeDialog();
     });
   });
 
+  // Mobile AudioContext unlock on first user gesture
+  const unlockAudioOnGesture = () => {
+    if (audioSynth && audioSynth.setEnabled && !audioSynth.isEnabled?.()) {
+      audioSynth.setEnabled(true);
+      updateAudioButtonUI(true);
+    }
+  };
+  window.addEventListener('touchstart', unlockAudioOnGesture, { once: true, passive: true });
+  window.addEventListener('pointerdown', unlockAudioOnGesture, { once: true, passive: true });
+
   window.addEventListener('keydown', (e) => {
     if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName) && !e.target.readOnly) return;
     if (e.repeat) return;
+    if (e.code === 'KeyF') {
+      e.preventDefault();
+      toggleFullscreen();
+      return;
+    }
     if (e.code === 'KeyC') {
       e.preventDefault();
       weatherManager.cycleWeather();
@@ -3254,9 +3495,19 @@ async function initApp() {
       return;
     }
     if (e.code === 'Escape') {
+      if (elIosInstallModal && !elIosInstallModal.classList.contains('hidden')) {
+        e.preventDefault();
+        hideIosInstallModal();
+        return;
+      }
       if (elLeaderboardModal && !elLeaderboardModal.classList.contains('hidden')) {
         e.preventDefault();
         hideLeaderboardModal();
+        return;
+      }
+      if (elWelcomeOverlay && elWelcomeOverlay.classList.contains('hidden')) {
+        e.preventDefault();
+        showWelcomeDialog();
         return;
       }
     }
@@ -3278,6 +3529,9 @@ async function initApp() {
       hideLapSplit();
       cancelF1StartCountdown();
       ghostVehicleManager.startLapRecording();
+      if (tireSmokeSystem) {
+        tireSmokeSystem.reset();
+      }
     } else if (e.code === 'KeyP') {
       hideWelcomeDialog();
       hideFinishOverlay();
@@ -3432,7 +3686,7 @@ async function initApp() {
   } else {
     setCameraMode(activeCameraMode);
   }
-  if (urlParams.get('sparks') === '1') {
+  if (urlParams.get('sparks') === '1' || urlParams.get('smoke') === '1') {
     physics.setAutopilot(true);
     physics.state.speed = 0.215;
     physics.state.isDrifting = true;
@@ -3443,6 +3697,7 @@ async function initApp() {
       microKart.kartRoot.quaternion.copy(preSt.quaternion);
       microKart.updateWheels(1 / 60, preSt.speed, preSt.steerAngle);
       microKart.updateKartVisuals(1 / 60, preSt);
+      tireSmokeSystem.update(1 / 60, preSt, microKart.kartRoot.scale.x || 0.38, camera);
     }
   }
   if (urlParams.has('dof')) {
@@ -3467,22 +3722,49 @@ async function initApp() {
   const appInitTimestamp = performance.now();
   let screenshotFrameCounter = 0;
 
-  // -------------------------------------------------------------------------
-  // 7. WINDOW RESIZE & 60FPS ANIMATION LOOP
-  // -------------------------------------------------------------------------
-  window.addEventListener('resize', () => {
+  function handleResizeOrOrientationChange() {
     const w = window.innerWidth;
     const h = window.innerHeight;
     camera.aspect = w / h;
+    const isPortrait = h > w;
+    const is1P = activeCameraMode === 1 || activeCameraMode === 2;
+    camera.fov = is1P ? (isPortrait ? 58.0 : 42.5) : (isPortrait ? 52.0 : 46.0);
     camera.updateProjectionMatrix();
+
     renderer.setSize(w, h);
     composer.setSize(w, h);
+
     const newDrawSize = renderer.getDrawingBufferSize(new THREE.Vector2());
-    fxaaPass.material.uniforms['resolution'].value.set(
-      1.0 / newDrawSize.x,
-      1.0 / newDrawSize.y
-    );
+    if (fxaaPass && fxaaPass.material && fxaaPass.material.uniforms['resolution']) {
+      fxaaPass.material.uniforms['resolution'].value.set(
+        1.0 / newDrawSize.x,
+        1.0 / newDrawSize.y
+      );
+    }
+    if (bokehPass && bokehPass.setSize) {
+      bokehPass.setSize(w, h);
+    }
+    if (tireSmokeSystem && camera && physics) {
+      tireSmokeSystem.update(0, physics.state, microKart.kartRoot.scale.x || 0.38, camera);
+    }
+    if (typeof checkOrientationBanner === 'function') {
+      checkOrientationBanner();
+    }
+  }
+
+  window.addEventListener('resize', handleResizeOrOrientationChange);
+  window.addEventListener('orientationchange', () => {
+    handleResizeOrOrientationChange();
+    setTimeout(handleResizeOrOrientationChange, 120);
+    setTimeout(handleResizeOrOrientationChange, 320);
   });
+  if (screen.orientation) {
+    screen.orientation.addEventListener('change', () => {
+      handleResizeOrOrientationChange();
+      setTimeout(handleResizeOrOrientationChange, 120);
+      setTimeout(handleResizeOrOrientationChange, 320);
+    });
+  }
 
   const clock = new THREE.Clock();
   let currentFocusDistance = activeCameraMode === 7 ? 1.85 : activeCameraMode === 8 ? 0.42 : 0.12;
@@ -3563,7 +3845,10 @@ async function initApp() {
     microKart.updateWheels(dt, st.speed, st.steerAngle);
     microKart.updateKartVisuals(dt, st);
 
-    // 2b. Record player trajectory for ghost vehicle & sync Ghost Vehicle Transform, Wheels & Delta HUD
+    // 2b. Three.js Tire Smoke Particle System for tight turns, chicanes & drifts
+    tireSmokeSystem.update(dt, st, microKart.kartRoot.scale.x || 0.38, camera);
+
+    // 2c. Record player trajectory for ghost vehicle & sync Ghost Vehicle Transform, Wheels & Delta HUD
     if (st.raceClockActive && !st.autopilot && !st.victoryCruise && !f1CountdownState.active) {
       ghostVehicleManager.recordFrame(st);
     }
