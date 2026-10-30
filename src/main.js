@@ -309,7 +309,7 @@ async function initApp() {
   sparkScene.add(microKart.sparkPoints);
 
   function syncKartScaleForCamera(mode) {
-    const is1P = mode === 1 || mode === 2;
+    const is1P = mode === 1 || mode === 2 || mode === 6;
     const targetScale = is1P
       ? 0.38
       : settings.panoKart100
@@ -406,7 +406,7 @@ async function initApp() {
   const highPolyRoomFurnitureNodes = [];
 
   function sync1PRoomAndCurtainVisibility(mode) {
-    const is1P = mode === 1 || mode === 2;
+    const is1P = mode === 1 || mode === 2 || mode === 6;
     for (const node of highPolyRoomFurnitureNodes) {
       node.visible = true;
     }
@@ -945,18 +945,149 @@ async function initApp() {
     return new THREE.CatmullRomCurve3(pts, true, 'centripetal', 0.5);
   }
 
-  const coursePanPosCurve = buildSmoothedClosedCatmullCurve(rawCoursePanPos, 64, 4);
-  const coursePanLookCurve = buildSmoothedClosedCatmullCurve(rawCoursePanLook, 64, 4);
-
   const _camDesiredPos = new THREE.Vector3();
   const _camDesiredLook = new THREE.Vector3();
   const _camBlendedUp = new THREE.Vector3();
+  const _camRightVec = new THREE.Vector3();
+
+  // -------------------------------------------------------------------------
+  // DYNAMIC CINEMATIC CAMERA SYSTEM (MODE 6)
+  // Automatically switches between spectacular dynamic track angles during the race:
+  // 1) Vue Ras du Sol: ultra-low asphalt perspective, rush of speed, track lines & sparks
+  // 2) Vue Latérale: left & right flank tracking profile framing kart body, wheels & helmet
+  // 3) Vue de Dessus: high aerial bird's eye view tracing coaster loops & desk monuments
+  // 4) Vue Action Avant: dramatic lookback facing oncoming kart
+  // -------------------------------------------------------------------------
+  const CINEMATIC_SHOTS = [
+    {
+      id: 'ground',
+      name: 'VUE RAS DU SOL',
+      desc: 'Au ras de l\'asphalte & étincelles',
+      icon: '🏎️',
+      duration: 5.0,
+      fov: 64,
+    },
+    {
+      id: 'lateral_left',
+      name: 'VUE LATÉRALE (GAUCHE)',
+      desc: 'Profil flanc gauche',
+      icon: '🏎️',
+      duration: 4.8,
+      fov: 50,
+    },
+    {
+      id: 'overhead',
+      name: 'VUE DE DESSUS',
+      desc: 'Plongée aérienne verticale',
+      icon: '🚁',
+      duration: 5.2,
+      fov: 52,
+    },
+    {
+      id: 'lateral_right',
+      name: 'VUE LATÉRALE (DROITE)',
+      desc: 'Profil flanc droit',
+      icon: '🏎️',
+      duration: 4.8,
+      fov: 50,
+    },
+    {
+      id: 'action_front',
+      name: 'VUE ACTION AVANT',
+      desc: 'Contre-plongée spectaculaire',
+      icon: '🎬',
+      duration: 4.5,
+      fov: 56,
+    },
+  ];
+
+  let cinematicShotIndex = 0;
+  let cinematicShotTimer = 0.0;
+  let cinematicCutPending = false;
+
+  const CAMERA_MODES = [
+    { id: 1, name: 'POURSUITE', short: 'CHASE', icon: '🏎️', desc: 'Vue arrière dynamique' },
+    { id: 2, name: 'COCKPIT', short: 'POV', icon: '🏁', desc: 'Vue au volant / Ras de piste' },
+    { id: 6, name: 'CINÉMATIQUE', short: 'CINÉ', icon: '🎬', desc: 'Changements d\'angles dynamiques automatiques' },
+    { id: 4, name: 'HÉLICOPTÈRE', short: 'HÉLI', icon: '🚁', desc: 'Vue aérienne au-dessus du bureau' },
+    { id: 3, name: 'DIORAMA', short: 'ORBIT', icon: '🔍', desc: 'Vue d\'ensemble 3D libre' },
+  ];
+
+  const elBtnCameraToggle = document.getElementById('btn-camera-toggle');
+  const elHudCameraIcon = document.getElementById('hud-camera-icon');
+  const elHudCameraLabel = document.getElementById('hud-camera-label');
+  const elBtnTouchCamToggle = document.getElementById('btn-touch-cam-toggle');
+  const elMobileCamPillIcon = document.getElementById('mobile-cam-pill-icon');
+  const elMobileCamPillText = document.getElementById('mobile-cam-pill-text');
+  const elHudCinematicBadge = document.getElementById('hud-cinematic-badge');
+  const elHudCinematicShotName = document.getElementById('hud-cinematic-shot-name');
+
+  function updateCinematicBadge(shotName) {
+    if (elHudCinematicShotName) {
+      elHudCinematicShotName.textContent = shotName;
+    }
+  }
+
+  function syncCameraUI(mode) {
+    const meta = CAMERA_MODES.find((m) => m.id === mode) || {
+      id: mode,
+      name: `MODE ${mode}`,
+      short: `CAM ${mode}`,
+      icon: '📷',
+      desc: '',
+    };
+
+    if (elHudCameraIcon) elHudCameraIcon.textContent = meta.icon;
+    if (elHudCameraLabel) elHudCameraLabel.textContent = meta.short;
+    if (elBtnCameraToggle) {
+      elBtnCameraToggle.classList.toggle('is-cinematic', mode === 6);
+      elBtnCameraToggle.title = `Caméra : ${meta.name} ${meta.icon} (${meta.desc}) · Cliquez ou touche C/V`;
+    }
+
+    if (elMobileCamPillIcon) elMobileCamPillIcon.textContent = meta.icon;
+    if (elMobileCamPillText) elMobileCamPillText.textContent = meta.name;
+    if (elBtnTouchCamToggle) {
+      elBtnTouchCamToggle.classList.toggle('active', mode === 6);
+    }
+
+    if (elHudCinematicBadge) {
+      const isCine = mode === 6;
+      elHudCinematicBadge.classList.toggle('hidden', !isCine);
+      if (isCine) {
+        updateCinematicBadge(CINEMATIC_SHOTS[cinematicShotIndex].name);
+      }
+    }
+  }
+
+  function cycleCameraMode() {
+    const currentIdx = CAMERA_MODES.findIndex((m) => m.id === activeCameraMode);
+    const nextIdx = (currentIdx + 1) % CAMERA_MODES.length;
+    const nextMode = CAMERA_MODES[nextIdx];
+    setCameraMode(nextMode.id);
+    showRecordToast(
+      `CAMÉRA : ${nextMode.name} ${nextMode.icon}`,
+      nextMode.desc
+    );
+  }
+
+  function nextCinematicShot() {
+    if (activeCameraMode !== 6) {
+      setCameraMode(6);
+      return;
+    }
+    cinematicShotTimer = 0.0;
+    cinematicShotIndex = (cinematicShotIndex + 1) % CINEMATIC_SHOTS.length;
+    cinematicCutPending = true;
+    const shot = CINEMATIC_SHOTS[cinematicShotIndex];
+    updateCinematicBadge(shot.name);
+    showRecordToast(`ANGLE CINÉMATIQUE 🎬`, shot.name);
+  }
 
   // Initialize 1P room & curtain visibility for default Mode 1
   sync1PRoomAndCurtainVisibility(activeCameraMode);
 
   function setCameraMode(rawMode) {
-    const mode = rawMode === 6 ? 4 : rawMode;
+    const mode = rawMode;
     activeCameraMode = mode;
     sync1PRoomAndCurtainVisibility(mode);
     syncKartScaleForCamera(mode);
@@ -978,11 +1109,15 @@ async function initApp() {
       if (is1P) {
         return isPortrait ? 58.0 : 42.5;
       }
+      if (targetMode === 6) {
+        const shotFov = CINEMATIC_SHOTS[cinematicShotIndex]?.fov || 54.0;
+        return isPortrait ? shotFov + 8.0 : shotFov;
+      }
       return isPortrait ? 52.0 : 46.0;
     }
 
     const targetNear = mode === 3 || mode === 8 ? 0.0004 :
-        mode === 1 || mode === 2                ? 0.0018 :
+        mode === 1 || mode === 2 || mode === 6  ? 0.0018 :
                                                   0.025;
     const targetFov = getOptimalFov(mode);
     if (
@@ -1001,7 +1136,7 @@ async function initApp() {
     if (visorOverlay) {
       visorOverlay.classList.add('hidden');
     }
-    const hideRacingHud = mode !== 1 && mode !== 2;
+    const hideRacingHud = mode !== 1 && mode !== 2 && mode !== 6;
     if (hudCornerVignette)
       hudCornerVignette.classList.toggle('hidden', hideRacingHud);
     if (hudBottomBar) hudBottomBar.classList.toggle('hidden', hideRacingHud);
@@ -1009,7 +1144,15 @@ async function initApp() {
     if (hudSpeedoGauge) hudSpeedoGauge.classList.toggle('hidden', hideRacingHud);
     if (hudLapWidget) hudLapWidget.classList.toggle('hidden', hideRacingHud);
 
-    if (mode === 4) {
+    syncCameraUI(mode);
+
+    if (mode === 6) {
+      // Mode 6: Dynamic Cinematic Camera Mode (Automatic Television Director Angles)
+      orbitControls.enabled = false;
+      cinematicCutPending = true;
+      cinematicShotTimer = 0.0;
+      updateCinematicBadge(CINEMATIC_SHOTS[cinematicShotIndex].name);
+    } else if (mode === 4) {
       // Mode 4: Helicopter Cam (Obstacle-Free Keyboard Heli 2 — Kart-Locked Aerial Heli in 100% obstacle-free front-upper airspace)
       orbitControls.enabled = false;
       camCurrentPos.set(0.08, 0.255, 0.305);
@@ -1143,7 +1286,11 @@ async function initApp() {
     }
 
     const keyNum = Number(e.key);
-    setCameraMode(keyNum === 6 ? 4 : keyNum);
+    setCameraMode(keyNum);
+    const meta = CAMERA_MODES.find((m) => m.id === keyNum);
+    if (meta) {
+      showRecordToast(`CAMÉRA : ${meta.name} ${meta.icon}`, meta.desc);
+    }
   });
 
   function updateCamera(dt, elapsedTime, st) {
@@ -1168,8 +1315,8 @@ async function initApp() {
       return;
     }
 
-    if (activeCameraMode === 4 || activeCameraMode === 6) {
-      // Mode 4 (and alias 6): Smooth Keyboard Helicopter Cam 2 —
+    if (activeCameraMode === 4) {
+      // Mode 4: Smooth Keyboard Helicopter Cam 2 —
       // 1) NEVER loses sight of the car (keeps camera Z >= 0.268m strictly in front of the frontmost
       //    track straightaway Z = 0.255m so the kart never passes behind/under the lens, and locks
       //    lookAt 78% onto st.position so the kart stays centered inside the frame on every turn).
@@ -1336,6 +1483,159 @@ async function initApp() {
       camera.up.copy(camCurrentUp);
       camera.position.copy(_camDesiredPos);
       camera.lookAt(_camDesiredLook);
+    } else if (activeCameraMode === 6) {
+      // -----------------------------------------------------------------------
+      // MODE 6: DYNAMIC CINEMATIC CAMERA DIRECTOR
+      // Cycles automatically between spectacular dynamic angles during the race:
+      // 1) VUE RAS DU SOL: ultra-low tarmac perspective, asphalt speed lines & sparks
+      // 2) VUE LATÉRALE (GAUCHE & DROITE): flank tracking profile framing wheels & helmet
+      // 3) VUE DE DESSUS: high aerial bird's eye view tracing coaster curves & desk
+      // 4) VUE ACTION AVANT: reverse angle facing oncoming kart
+      // -----------------------------------------------------------------------
+      cinematicShotTimer += dt;
+      let currentShot = CINEMATIC_SHOTS[cinematicShotIndex];
+      if (cinematicShotTimer >= currentShot.duration) {
+        cinematicShotTimer = 0.0;
+        cinematicShotIndex = (cinematicShotIndex + 1) % CINEMATIC_SHOTS.length;
+        currentShot = CINEMATIC_SHOTS[cinematicShotIndex];
+        cinematicCutPending = true;
+        updateCinematicBadge(currentShot.name);
+
+        const isPortrait = window.innerHeight > window.innerWidth;
+        const targetFov = isPortrait ? currentShot.fov + 8.0 : currentShot.fov;
+        camera.fov = targetFov;
+        camera.updateProjectionMatrix();
+      }
+
+      const shotProgress = Math.min(1.0, cinematicShotTimer / currentShot.duration);
+      const isLandscapeMobile = isMobileClient && window.innerWidth > window.innerHeight;
+      const speedAbs = Math.abs(st.speed);
+      const speedRatio = Math.min(1.0, speedAbs / 0.22);
+
+      if (currentShot.id === 'ground') {
+        // 1. VUE RAS DU SOL : Dramatic ultra-low tarmac shot scraping the asphalt
+        const groundBack = isLandscapeMobile ? -0.0135 : -0.0120;
+        const groundHeight = 0.0030 + st.hopHeight * 0.35 + Math.sin(elapsedTime * 52.0) * 0.00025 * speedRatio;
+        const groundSide = 0.0042 + Math.sin(shotProgress * Math.PI) * 0.0010;
+
+        _camDesiredPos
+          .copy(st.position)
+          .addScaledVector(camForward, groundBack)
+          .addScaledVector(_camRightVec, groundSide)
+          .addScaledVector(st.normal, groundHeight);
+
+        _camDesiredLook
+          .copy(st.position)
+          .addScaledVector(camForward, 0.038)
+          .addScaledVector(st.normal, 0.0024);
+
+        _camBlendedUp
+          .set(0, 0.65, 0)
+          .addScaledVector(st.normal, 0.35)
+          .normalize();
+
+      } else if (currentShot.id === 'lateral_left') {
+        // 2. VUE LATÉRALE GAUCHE : Cinematic flank tracking shot alongside the micro-kart
+        const dollyOffset = (shotProgress - 0.5) * 0.0055;
+        const flankDist = isLandscapeMobile ? -0.024 : -0.021;
+        const flankHeight = 0.0062 + st.hopHeight * 0.25;
+
+        _camDesiredPos
+          .copy(st.position)
+          .addScaledVector(camForward, -0.0018 + dollyOffset)
+          .addScaledVector(_camRightVec, flankDist)
+          .addScaledVector(st.normal, flankHeight);
+
+        _camDesiredLook
+          .copy(st.position)
+          .addScaledVector(camForward, 0.0042)
+          .addScaledVector(st.normal, 0.0028);
+
+        _camBlendedUp
+          .set(0, 0.72, 0)
+          .addScaledVector(st.normal, 0.28)
+          .normalize();
+
+      } else if (currentShot.id === 'overhead') {
+        // 3. VUE DE DESSUS : High aerial bird's eye view looking down on coaster bends
+        const overheadHeight = isLandscapeMobile ? 0.068 : 0.078;
+        const overheadDolly = Math.sin(shotProgress * 1.8) * 0.0035;
+
+        _camDesiredPos
+          .copy(st.position)
+          .addScaledVector(camForward, -0.0030 + overheadDolly)
+          .addScaledVector(st.normal, overheadHeight);
+
+        _camDesiredLook
+          .copy(st.position)
+          .addScaledVector(camForward, 0.012);
+
+        _camBlendedUp.copy(camForward).normalize();
+
+      } else if (currentShot.id === 'lateral_right') {
+        // 4. VUE LATÉRALE DROITE : Dynamic right flank profile showing exhaust and suspension
+        const dollyOffset = -(shotProgress - 0.5) * 0.0055;
+        const flankDist = isLandscapeMobile ? 0.024 : 0.021;
+        const flankHeight = 0.0062 + st.hopHeight * 0.25;
+
+        _camDesiredPos
+          .copy(st.position)
+          .addScaledVector(camForward, -0.0018 + dollyOffset)
+          .addScaledVector(_camRightVec, flankDist)
+          .addScaledVector(st.normal, flankHeight);
+
+        _camDesiredLook
+          .copy(st.position)
+          .addScaledVector(camForward, 0.0042)
+          .addScaledVector(st.normal, 0.0028);
+
+        _camBlendedUp
+          .set(0, 0.72, 0)
+          .addScaledVector(st.normal, 0.28)
+          .normalize();
+
+      } else {
+        // 5. VUE ACTION AVANT : Reverse action shot framing oncoming kart rushing towards lens
+        const approachOffset = -shotProgress * 0.0040;
+        const actionForward = 0.022 + approachOffset;
+        const actionHeight = 0.0056 + st.hopHeight * 0.20;
+
+        _camDesiredPos
+          .copy(st.position)
+          .addScaledVector(camForward, actionForward)
+          .addScaledVector(_camRightVec, 0.0055)
+          .addScaledVector(st.normal, actionHeight);
+
+        _camDesiredLook
+          .copy(st.position)
+          .addScaledVector(st.normal, 0.0028);
+
+        _camBlendedUp
+          .set(0, 0.68, 0)
+          .addScaledVector(st.normal, 0.32)
+          .normalize();
+      }
+
+      if (cinematicCutPending || isScreenshotMode) {
+        // Instant crisp broadcast cut
+        camCurrentPos.copy(_camDesiredPos);
+        camCurrentLookAt.copy(_camDesiredLook);
+        camCurrentUp.copy(_camBlendedUp);
+        cinematicCutPending = false;
+      } else {
+        // Damped tracking within the active shot for 60 FPS fluidity
+        const smoothPos = 1.0 - Math.exp(-dt * 13.0);
+        const smoothLook = 1.0 - Math.exp(-dt * 15.0);
+        const smoothUp = 1.0 - Math.exp(-dt * 11.0);
+        camCurrentPos.lerp(_camDesiredPos, smoothPos);
+        camCurrentLookAt.lerp(_camDesiredLook, smoothLook);
+        camCurrentUp.lerp(_camBlendedUp, smoothUp).normalize();
+      }
+
+      camera.up.copy(camCurrentUp);
+      camera.position.copy(camCurrentPos);
+      camera.lookAt(camCurrentLookAt);
+      return;
     } else if (activeCameraMode === 9) {
       // Mode 9: Smooth Keyboard Helicopter Cam — Spins smoothly in obstacle-free airspace
       // over the Logitech G915 Keyboard (Z in [+0.18m, +0.33m], X in [-0.295m, +0.055m], Y ~ 0.235m),
@@ -2860,6 +3160,8 @@ async function initApp() {
     }
   }
 
+  let lastRawAngle = 0.0;
+
   function handleDeviceOrientation(e) {
     if (!gyroActive) return;
     const isLandscape = window.innerWidth > window.innerHeight;
@@ -2878,6 +3180,7 @@ async function initApp() {
     } else {
       rawAngle = (e.gamma || 0);
     }
+    lastRawAngle = rawAngle;
 
     const netAngle = rawAngle - gyroNeutralOffset;
     let effective = 0;
@@ -2914,8 +3217,8 @@ async function initApp() {
   }
 
   function calibrateGyro() {
-    gyroNeutralOffset = 0.0;
-    showRecordToast('GYROSCOPE CALIBRÉ 🎯', 'Position neutre réinitialisée');
+    gyroNeutralOffset = lastRawAngle;
+    showRecordToast('GYROSCOPE CALIBRÉ 🎯', 'Position neutre actuelle enregistrée');
   }
 
   function initGyroListener() {
@@ -2969,6 +3272,8 @@ async function initApp() {
   // Orientation portrait warning banner
   const elOrientationBanner = document.getElementById('hud-orientation-banner');
   const elBtnOrientationDismiss = document.getElementById('btn-orientation-dismiss');
+  const elBtnBannerFullscreen = document.getElementById('btn-banner-fullscreen');
+  const elTouchFullscreen = document.getElementById('btn-touch-fullscreen');
   let orientationDismissed = false;
 
   function checkOrientationBanner() {
@@ -2984,6 +3289,22 @@ async function initApp() {
       e.stopPropagation();
       orientationDismissed = true;
       if (elOrientationBanner) elOrientationBanner.classList.add('hidden');
+    });
+  }
+
+  if (elBtnBannerFullscreen) {
+    elBtnBannerFullscreen.addEventListener('click', (e) => {
+      e.stopPropagation();
+      orientationDismissed = true;
+      if (elOrientationBanner) elOrientationBanner.classList.add('hidden');
+      toggleFullscreen();
+    });
+  }
+
+  if (elTouchFullscreen) {
+    elTouchFullscreen.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFullscreen();
     });
   }
 
@@ -3046,6 +3367,11 @@ async function initApp() {
       elBtnFullscreenToggle.title = isFs
         ? 'Quitter le plein écran (F)'
         : 'Plein écran horizontal / paysage (F)';
+    }
+    if (elTouchFullscreen) {
+      elTouchFullscreen.classList.toggle('active', isFs);
+      const fsText = document.getElementById('mobile-fs-btn-text');
+      if (fsText) fsText.textContent = isFs ? 'FENÊTRE' : 'PAYSAGE';
     }
   }
 
@@ -3446,6 +3772,27 @@ async function initApp() {
     });
   });
 
+  if (elBtnCameraToggle) {
+    elBtnCameraToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cycleCameraMode();
+    });
+  }
+
+  if (elBtnTouchCamToggle) {
+    elBtnTouchCamToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cycleCameraMode();
+    });
+  }
+
+  if (elHudCinematicBadge) {
+    elHudCinematicBadge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      nextCinematicShot();
+    });
+  }
+
   // Mobile AudioContext unlock on first user gesture
   const unlockAudioOnGesture = () => {
     if (audioSynth && audioSynth.setEnabled && !audioSynth.isEnabled?.()) {
@@ -3464,7 +3811,12 @@ async function initApp() {
       toggleFullscreen();
       return;
     }
-    if (e.code === 'KeyC') {
+    if (e.code === 'KeyC' || e.code === 'KeyV') {
+      e.preventDefault();
+      cycleCameraMode();
+      return;
+    }
+    if (e.code === 'KeyX' || e.code === 'KeyB') {
       e.preventDefault();
       weatherManager.cycleWeather();
       return;
@@ -3556,7 +3908,7 @@ async function initApp() {
   let lastVisorStr = '';
 
   function updateHUD(st) {
-    if (activeCameraMode !== 1 && activeCameraMode !== 2) return;
+    if (activeCameraMode !== 1 && activeCameraMode !== 2 && activeCameraMode !== 6) return;
     // 1:150 N-Scale Speed in km/h (calibrated so 0.204 m/s cruise = 75 km/h, 0.289 m/s boost = 106 km/h)
     const absSpeed = Math.abs(st.speed);
     const scaleKmh = Math.round(absSpeed * 102.35 * 3.6);
@@ -3681,7 +4033,7 @@ async function initApp() {
   if (urlParams.has('cam')) {
     const requestedCam = parseInt(urlParams.get('cam'), 10);
     if (requestedCam >= 1 && requestedCam <= 9) {
-      setCameraMode(requestedCam === 6 ? 4 : requestedCam);
+      setCameraMode(requestedCam);
     }
   } else {
     setCameraMode(activeCameraMode);
@@ -3728,7 +4080,12 @@ async function initApp() {
     camera.aspect = w / h;
     const isPortrait = h > w;
     const is1P = activeCameraMode === 1 || activeCameraMode === 2;
-    camera.fov = is1P ? (isPortrait ? 58.0 : 42.5) : (isPortrait ? 52.0 : 46.0);
+    const isCine = activeCameraMode === 6;
+    camera.fov = is1P
+      ? (isPortrait ? 58.0 : 42.5)
+      : isCine
+        ? (isPortrait ? (CINEMATIC_SHOTS[cinematicShotIndex]?.fov || 54.0) + 8.0 : (CINEMATIC_SHOTS[cinematicShotIndex]?.fov || 54.0))
+        : (isPortrait ? 52.0 : 46.0);
     camera.updateProjectionMatrix();
 
     renderer.setSize(w, h);
@@ -3828,7 +4185,8 @@ async function initApp() {
   }
 
   function animate() {
-    const dt = isScreenshotMode ? 1 / 60 : clock.getDelta();
+    const rawDt = clock.getDelta();
+    const dt = isScreenshotMode ? 1 / 60 : Math.min(rawDt, 0.05);
     const elapsedTime =
       (isScreenshotMode ? screenshotFrameCounter / 60 : clock.getElapsedTime()) +
       requestedTimeOffset;

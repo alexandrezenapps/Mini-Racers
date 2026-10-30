@@ -84,6 +84,18 @@
               <span id="hud-circuit-label" class="hud-circuit-label">C1</span>
             </button>
 
+            <!-- Top-Right Camera Mode Switcher Button -->
+            <button
+              id="btn-camera-toggle"
+              class="hud-mute-btn hud-camera-btn"
+              type="button"
+              aria-label="Changer de caméra (C ou V)"
+              title="Changer de caméra (C / V) : Poursuite / Cockpit / Cinématique / Hélico / Diorama"
+            >
+              <span id="hud-camera-icon" class="hud-camera-icon-span">🎬</span>
+              <span id="hud-camera-label" class="hud-camera-label">CINÉ</span>
+            </button>
+
             <!-- Top-Right Mobile App Install / Add to Home Screen Button -->
             <button
               id="btn-pwa-install"
@@ -114,8 +126,8 @@
               id="btn-weather-toggle"
               class="hud-mute-btn hud-weather-btn"
               type="button"
-              aria-label="Changer la météo (C)"
-              title="Météo dynamique (C) : Clair / Pluie / Brouillard"
+              aria-label="Changer la météo (X)"
+              title="Météo dynamique (X) : Clair / Pluie / Brouillard"
             >
               <span id="hud-weather-icon" class="hud-weather-icon-span">☀️</span>
               <span id="hud-weather-dot" class="hud-weather-dot"></span>
@@ -211,10 +223,22 @@
         </div>
       </header>
 
+      <!-- Floating Cinematic Mode Shot Indicator (Dynamic TV Director Angles) -->
+      <div id="hud-cinematic-badge" class="hud-cinematic-badge hidden" role="status" aria-live="polite" title="Mode Cinématique : Cliquez ou touche C/V pour changer d'angle">
+        <span class="cinematic-badge-icon">🎬</span>
+        <span class="cinematic-badge-tag">CINÉMATIQUE</span>
+        <span class="cinematic-badge-sep">·</span>
+        <span id="hud-cinematic-shot-name" class="cinematic-badge-text">VUE RAS DU SOL</span>
+        <span class="cinematic-badge-dot"></span>
+      </div>
+
       <!-- Mobile Landscape Recommendation Banner (Shown when mobile device is held in portrait) -->
       <div id="hud-orientation-banner" class="hud-orientation-banner hidden" role="status">
         <span class="orientation-banner-icon">🔄</span>
-        <span class="orientation-banner-text">Mode <strong>horizontal (paysage)</strong> conseillé pour une meilleure vision du circuit</span>
+        <span class="orientation-banner-text">Mode <strong>horizontal (paysage)</strong> conseillé</span>
+        <button id="btn-banner-fullscreen" class="orientation-fullscreen-btn" type="button" title="Activer le mode horizontal plein écran">
+          MODE PAYSAGE 📱
+        </button>
         <button id="btn-orientation-dismiss" class="orientation-dismiss-btn" type="button" aria-label="Fermer la suggestion">✕</button>
       </div>
 
@@ -332,7 +356,7 @@
               </div>
             </div>
 
-            <!-- Les 3 actions simples pour jouer immédiatement -->
+            <!-- Les 4 actions simples pour jouer immédiatement -->
             <div class="home-tips-grid">
               <div class="home-tip-card">
                 <span class="home-tip-key">AVANCER</span>
@@ -345,6 +369,10 @@
               <div class="home-tip-card">
                 <span class="home-tip-key tip-drift">DÉRAPER</span>
                 <span class="home-tip-desc">Inclinez ou <strong>A / D</strong> en courbe</span>
+              </div>
+              <div class="home-tip-card">
+                <span class="home-tip-key tip-cam">CAMÉRA</span>
+                <span class="home-tip-desc">Touche <strong>C / V</strong> · Mode <strong>Ciné 🎬</strong></span>
               </div>
             </div>
           </div>
@@ -621,6 +649,16 @@
         <!-- Center Actions: Gyro Steering Mode & Dynamic Weather Pill -->
         <div class="mobile-ctrl-cluster mobile-center-cluster" role="group" aria-label="Options de jeu">
           <button
+            id="btn-touch-cam-toggle"
+            class="mobile-ctrl-pill-btn mobile-cam-pill"
+            type="button"
+            title="Changer la vue caméra (C / V) : Poursuite, Cockpit, Cinématique, Hélico"
+          >
+            <span id="mobile-cam-pill-icon" class="mobile-pill-icon">🎬</span>
+            <span id="mobile-cam-pill-text" class="mobile-pill-text">CINÉMATIQUE</span>
+          </button>
+
+          <button
             id="btn-touch-gyro-toggle"
             class="mobile-ctrl-pill-btn active"
             type="button"
@@ -648,6 +686,16 @@
           >
             <span class="mobile-pill-icon">🏁</span>
             <span id="mobile-circuit-btn-text" class="mobile-pill-text">CIRCUIT 1</span>
+          </button>
+
+          <button
+            id="btn-touch-fullscreen"
+            class="mobile-ctrl-pill-btn mobile-fs-pill"
+            type="button"
+            title="Mode Horizontal Plein Écran (F)"
+          >
+            <span class="mobile-pill-icon">📱</span>
+            <span id="mobile-fs-btn-text" class="mobile-pill-text">PAYSAGE</span>
           </button>
         </div>
 
